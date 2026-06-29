@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MQTT Flask App</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; }
+      label { display: block; margin-top: 1rem; }
+      input, textarea { width: 100%; max-width: 500px; padding: 0.5rem; }
+      button { margin-top: 1rem; padding: 0.75rem 1rem; }
+      .card { background: #f8f8f8; padding: 1rem; border-radius: 8px; margin-top: 1rem; max-width: 600px; }
+    </style>
+  </head>
+  <body>
+    <h1>MQTT Flask App</h1>
+    <p>Broker: <strong>{{ request.host }}</strong></p>
+    <p>Subscribe topic: <strong>{{ topic }}</strong></p>
+
+    <div class="card">
+      <h2>Last MQTT Message</h2>
+      <p><strong>Topic:</strong> <span id="last-topic">{{ message.topic or 'None' }}</span></p>
+      <p><strong>Payload:</strong> <span id="last-payload">{{ message.payload or 'None' }}</span></p>
+      <p><strong>Layout:</strong> <span id="last-layout">{{ message.layout or 'None' }}</span></p>
+      <h3>Widgets</h3>
+      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px;">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Data</th>
+          </tr>
+        </thead>
+        <tbody id="widget-body">
+          {% if message.widgets %}
+            {% for widget in message.widgets %}
+            <tr>
+              <td>{{ widget.type }}</td>
+              <td>{{ widget.data }}</td>
+            </tr>
+            {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="2">No widgets</td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Send MQTT Message</h2>
+      <form action="{{ url_for('publish') }}" method="post">
+        <label for="topic">Topic</label>
+        <input type="text" name="topic" id="topic" value="{{ topic }}" />
+
+        <label for="payload">Payload</label>
+        <textarea name="payload" id="payload" rows="4"></textarea>
+
+        <button type="submit">Publish</button>
+      </form>
+    </div>
+
+    <script>
+      const statusEl = document.createElement('p');
+      statusEl.textContent = 'SSE status: connecting...';
+      document.body.insertBefore(statusEl, document.body.firstChild);
+
+      function updatePage(data) {
+        document.querySelector('#last-topic').textContent = data.topic || 'None';
+        document.querySelector('#last-payload').textContent = data.payload || 'None';
+        document.querySelector('#last-layout').textContent = data.layout || 'None';
+        const widgetBody = document.querySelector('#widget-body');
+        if (data.widgets && Array.isArray(data.widgets) && data.widgets.length) {
+          widgetBody.innerHTML = data.widgets.map(widget => `\n            <tr>\n              <td>${widget.type || ''}</td>\n              <td>${widget.data || ''}</td>\n            </tr>`).join('');
+        } else {
+          widgetBody.innerHTML = '<tr><td colspan="2">No widgets</td></tr>';
+        }
+      }
+
+      const eventSource = new EventSource("{{ url_for('events') }}");
+      eventSource.onopen = function() {
+        statusEl.textContent = 'SSE status: connected';
+        console.log('SSE connected');
+      };
+      eventSource.onerror = function() {
+        statusEl.textContent = 'SSE status: disconnected, retrying...';
+        console.warn('SSE error, falling back to polling');
+      };
+      eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        updatePage(data);
+        console.log('SSE update received', data);
+      };
+
+      function pollLatest() {
+        fetch("{{ url_for('latest') }}")
+          .then(resp => resp.json())
+          .then(data => {
+            updatePage(data);
+          })
+          .catch(err => console.error('Polling error', err));
+      }
+
+      pollLatest();
+      setInterval(pollLatest, 10000);
+    </script>
+  </body>
+</html>
