@@ -7,3 +7,30 @@
 [submodule "lib/FreeRTOS-Kernel"]
 	path = lib/FreeRTOS-Kernel
 	url = https://github.com/FreeRTOS/FreeRTOS-Kernel
+[submodule "lib/twinThingPico1-2W"]
+	path = lib/twinThingPico1-2W
+	url = https://github.com/DrJonEA/twinThingPico1-2W
+[submodule "lib/wolfssl"]
+	path = lib/wolfssl
+	url = https://github.com/wolfSSL/wolfssl
+[submodule "lib/coreMQTT-Agent"]
+	path = lib/coreMQTT-Agent
+	url = https://github.com/FreeRTOS/coreMQTT-Agent
+[submodule "lib/coreMQTT"]
+	path = lib/coreMQTT
+	url = https://github.com/FreeRTOS/coreMQTT
+[submodule "lib/tiny-json"]
+	path = lib/tiny-json
+	url = https://github.com/rafagafe/tiny-json
+[submodule "lib/json-maker"]
+	path = lib/json-maker
+	url = https://github.com/rafagafe/json-maker
+[submodule "lib/RPIPicoWWSClient"]
+	path = lib/RPIPicoWWSClient
+	url = https://github.com/DrJonEA/RPIPicoWWSClient
+[submodule "lib/coreHTTP"]
+	path = lib/coreHTTP
+	url = https://github.com/FreeRTOS/coreHTTP
+[submodule "lib/uri-library"]
+	path = lib/uri-library
+	url = https://github.com/ben-zen/uri-library
