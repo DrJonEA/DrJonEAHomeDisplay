@@ -8,7 +8,14 @@
 #include "Widgets.h"
 #include <cstdio>
 
+Widgets *Widgets::SELF = NULL;
 
+Widgets * Widgets::singleton(){
+	if (SELF == NULL){
+		SELF = new Widgets;
+	}
+	return SELF;
+}
 
 Widgets::Widgets() {
 }
@@ -117,4 +124,8 @@ void Widgets::timerHandler(lv_timer_t * timer){
 	}
 }
 
+
+void Widgets::message(const char *s){
+	lv_label_set_text(pTestLbl, s);
+}
 

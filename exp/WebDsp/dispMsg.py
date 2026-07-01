@@ -64,7 +64,7 @@ j = {
    "widgets": [
       {
          "type": "txt",
-         "data": "Message Test"
+         "data": "Hi there DrJon"
       }
    ]
 }

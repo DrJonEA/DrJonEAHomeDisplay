@@ -18,13 +18,16 @@
 
 class Widgets {
 public:
-	Widgets();
+	static Widgets * singleton();
 	virtual ~Widgets();
 
 	void init();
 
-private:
+	void message(const char *s);
 
+private:
+	Widgets();
+	static Widgets *SELF;
 	static void timerCB(lv_timer_t * timer);
 	void timerHandler(lv_timer_t * timer);
 

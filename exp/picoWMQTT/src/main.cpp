@@ -32,7 +32,7 @@ extern "C"{
 #include "MQTTAgent.h"
 #include <WifiHelper.h>
 #include "BlinkAgent.h"
-#include "MQTTRouterLED.h"
+#include "MQTTRouterDisplay.h"
 
 //Check these definitions where added from the makefile
 #ifndef MQTT_CLIENT
@@ -175,7 +175,7 @@ void main_task(void *params){
 	char mqttClient[] = MQTT_CLIENT;
 	char mqttUser[] = MQTT_USER;
 	char mqttPwd[] = MQTT_PASSWD;
-	MQTTRouterLED mqttRouter(mqttClient, CONTROL_LED);
+	MQTTRouterDisplay mqttRouter;
 	MQTTAgent mqttAgent;
 
 
@@ -222,10 +222,10 @@ void main_task(void *params){
 
 
 void lvgl_task(void* params){
-	Widgets widgets;
+	Widgets *widgets = Widgets::singleton();
 
 	lv_tick_set_cb(xTaskGetTickCount);
-	widgets.init();
+	widgets->init();
 	for(;;){
 	  for (int i=0; i < 100; i++){
 		  lv_timer_handler();
