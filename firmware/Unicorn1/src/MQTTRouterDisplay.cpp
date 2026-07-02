@@ -10,6 +10,7 @@
 #include <cstring>
 #include "MQTTConfig.h"
 #include "Widgets.h"
+#include "Request.h"
 
 MQTTRouterDisplay::MQTTRouterDisplay() {
 	// TODO Auto-generated constructor stub
@@ -72,6 +73,16 @@ void MQTTRouterDisplay::route(const char *topic,
 			const char *s =  json_getValue(item);
 			printf("Mesg: %s\n",s);
 			Widgets::singleton()->message(s);
+		}
+
+		if (item && strcmp(json_getValue(item), "img")==0){
+			char *buf = (char *)pvPortMalloc(2048);
+			Request *req = new Request(buf, 2048);
+			req->get("http://jons-mbp.local.jondurrant.com:5080/static/home.png");
+			printf("HTTP GET Result %d\n", req->getStatusCode());
+			delete(req);
+			vPortFree(buf);
+
 		}
 
 		widget = json_getSibling(widget);

@@ -1,6 +1,6 @@
 import logging
 import threading
-from flask import Flask, render_template, request, redirect, url_for, Response, jsonify, stream_with_context
+from flask import Flask, render_template, request, redirect, url_for, Response, jsonify, stream_with_context, send_from_directory
 import paho.mqtt.client as mqtt
 import json
 import time
@@ -76,6 +76,11 @@ def mqtt_thread():
 @app.route("/")
 def index():
     return render_template("index.html", message=last_message, topic=MQTT_TOPIC)
+
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory(os.path.join(app.root_path, 'static'), filename)
 
 
 @app.route("/publish", methods=["POST"])
