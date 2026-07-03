@@ -76,12 +76,13 @@ void MQTTRouterDisplay::route(const char *topic,
 		}
 
 		if (item && strcmp(json_getValue(item), "img")==0){
-			char *buf = (char *)pvPortMalloc(2048);
-			Request *req = new Request(buf, 2048);
-			req->get("http://jons-mbp.local.jondurrant.com:5080/static/home.png");
+			char *buf = (char *)pvPortMalloc(2500);
+			Request *req = new Request(buf, 2500);
+			req->get("http://jons-mbp.local.jondurrant.com:5080/img");
 			printf("HTTP GET Result %d\n", req->getStatusCode());
+			Widgets::singleton()->img((void *)req->getPayload(), req->getPayloadLen());
 			delete(req);
-			vPortFree(buf);
+			//vPortFree(buf);
 
 		}
 

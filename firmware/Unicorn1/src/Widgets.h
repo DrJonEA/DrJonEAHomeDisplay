@@ -25,6 +25,8 @@ public:
 
 	void message(const char *s);
 
+	void img(const void *ptr, size_t len);
+
 private:
 	Widgets();
 	static Widgets *SELF;
@@ -38,6 +40,7 @@ private:
 
 	lv_obj_t *xTV;
 	lv_obj_t *xTile1;
+	lv_obj_t *xTile2;
 
 	lv_obj_t *pDrJonLbl;
 	lv_obj_t *pTestLbl;
@@ -49,6 +52,9 @@ private:
 
 	lv_obj_t *pTemperature;
 	lv_obj_t *pHumidity;
+
+	lv_obj_t *pImg;
+	lv_image_dsc_t xImgDsc;
 
 	lv_style_t xStyleTile;
 	lv_style_t xLabelSt;

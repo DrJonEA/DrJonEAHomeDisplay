@@ -1,6 +1,7 @@
 import logging
 import threading
 from flask import Flask, render_template, request, redirect, url_for, Response, jsonify, stream_with_context, send_from_directory
+from PIL import Image
 import paho.mqtt.client as mqtt
 import json
 import time
@@ -81,6 +82,36 @@ def index():
 @app.route('/static/<path:filename>')
 def static_files(filename):
     return send_from_directory(os.path.join(app.root_path, 'static'), filename)
+
+
+@app.route('/img')
+def img():
+    image_path = os.path.join(app.root_path, 'static', 'home.png')
+    if not os.path.exists(image_path):
+        return Response('File not found', status=404)
+
+    try:
+        with Image.open(image_path) as img_file:
+            img = img_file.convert('RGB')
+            width, height = img.size
+            pixels = img.load()
+            raw = bytearray()
+            for y in range(height):
+                for x in range(width):
+                    r, g, b = pixels[x, y]
+                    rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+                    raw.append((rgb565 >> 8) & 0xFF)
+                    raw.append(rgb565 & 0xFF)
+
+        headers = {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str(len(raw)),
+            'X-Image-Width': str(width),
+            'X-Image-Height': str(height),
+        }
+        return Response(bytes(raw), headers=headers)
+    except Exception as exc:
+        return Response(str(exc), status=500)
 
 
 @app.route("/publish", methods=["POST"])

@@ -32,7 +32,6 @@ void Widgets::init() {
 	xTV =lv_scr_act();
 	lv_obj_clear_flag(xTV, LV_OBJ_FLAG_SCROLLABLE);
 
-
 	lv_style_init(&xStyleTile);
 	lv_style_set_bg_color(&xStyleTile, lv_color_hex(0x000000));
 	lv_style_set_bg_opa(&xStyleTile, LV_OPA_COVER);
@@ -57,30 +56,31 @@ void Widgets::init() {
 			lv_color_make(0xFF, 0xF0, 0xF0));
 
 
-	/*Create an array for the points of the line*/
-	lv_point_precise_t line_points[] = { {5, 5}, {10, 20}, {20, 10}, {25, 15}, {30,30}};
+	xTV = lv_tileview_create(xTV);
+	xTile1 = lv_tileview_add_tile(xTV, 0, 0, LV_DIR_NONE);
+	xTile2 = lv_tileview_add_tile(xTV, 1, 0, LV_DIR_NONE);
+	lv_obj_add_style(xTile1, &xStyleTile, 0);
+	lv_obj_add_style(xTile2, &xStyleTile, 0);
+	lv_obj_clear_flag(xTV, LV_OBJ_FLAG_SCROLLABLE);
+	lv_obj_clear_flag(xTile1, LV_OBJ_FLAG_SCROLLABLE);
+	lv_obj_clear_flag(xTile2, LV_OBJ_FLAG_SCROLLABLE);
 
-	/*Create style*/
-	lv_style_init(&style_line);
-	lv_style_set_line_width(&style_line, 2);
-	lv_style_set_line_color(&style_line, lv_palette_main(LV_PALETTE_BLUE));
-	lv_style_set_line_rounded(&style_line, true);
 
-	pTemperature = lv_label_create(xTV);
+	pTemperature = lv_label_create(xTile1);
 	lv_label_set_text(pTemperature, "??.?C");
 	lv_obj_set_width(pTemperature, 32);
 	lv_obj_set_style_text_align(pTemperature, LV_TEXT_ALIGN_LEFT, 0);
 	lv_obj_align(pTemperature, LV_ALIGN_TOP_LEFT, 0, 7);
 	lv_obj_add_style(pTemperature , &xLabelSt,  LV_PART_MAIN);
 
-	pHumidity = lv_label_create(xTV);
+	pHumidity = lv_label_create(xTile1);
 	lv_label_set_text(pHumidity, "??.?%");
 	lv_obj_set_width(pHumidity, 32);
 	lv_obj_set_style_text_align(pHumidity, LV_TEXT_ALIGN_LEFT, 0);
 	lv_obj_align(pHumidity, LV_ALIGN_TOP_LEFT, 0, 15);
 	lv_obj_add_style(pHumidity , &xLabelSt,  LV_PART_MAIN);
 
-	pTestLbl = lv_label_create(xTV);
+	pTestLbl = lv_label_create(xTile1);
 	//lv_label_set_long_mode(pTestLbl, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
 	lv_label_set_text(pTestLbl, "Testing a Scoll Message");
 	//lv_obj_set_width(pTestLbl, 32);  /*Set smaller width to make the lines wrap*/
@@ -90,35 +90,48 @@ void Widgets::init() {
 	xPos = 32;// lv_obj_get_width(pTestLbl);
 	lv_obj_set_pos(pTestLbl,  xPos,  4);
 
-	/*
-	pBtmLbl = lv_label_create(xTV);
-	//lv_label_set_long_mode(pBtmLbl, LV_LABEL_LONG_WRAP);     
-	lv_label_set_text(pBtmLbl, "081234");//:32");
-	lv_obj_set_width(pBtmLbl, 32);  
-	lv_obj_set_style_text_align(pBtmLbl, LV_TEXT_ALIGN_LEFT, 0);
-	lv_obj_align(pBtmLbl, LV_ALIGN_TOP_LEFT, -1,24);
-	lv_obj_add_style(pBtmLbl , &xLabelStB,  LV_PART_MAIN);
-	*/
 
 	LV_IMAGE_DECLARE(wifi_off);
-	pWifiIcon = lv_image_create(xTV);
+	pWifiIcon = lv_image_create(xTile1);
 	lv_image_set_src(pWifiIcon, &wifi_off);
 	lv_obj_align(pWifiIcon, LV_ALIGN_TOP_RIGHT, 0, 0);
 
 	LV_IMAGE_DECLARE(cloud_off);
-	pCloudIcon = lv_image_create(xTV);
+	pCloudIcon = lv_image_create(xTile1);
 	lv_image_set_src(pCloudIcon, &cloud_off);
 	lv_obj_align(pCloudIcon, LV_ALIGN_TOP_RIGHT, -8, 0);
 
 	LV_IMAGE_DECLARE(defcon5);
-	pDefconIcon = lv_image_create(xTV);
+	pDefconIcon = lv_image_create(xTile1);
 	lv_image_set_src(pDefconIcon, &defcon5);
 	lv_obj_align(pDefconIcon, LV_ALIGN_TOP_LEFT, 0, 0);
 
-	clockDisplay.init(xTV);
+	clockDisplay.init(xTile1);
+
+	//Tile 2
+	pImg = lv_image_create(xTile2);
+	lv_obj_align(pImg, LV_ALIGN_TOP_LEFT, 0, 0);
+
+
 
 	pTimer = lv_timer_create(timerCB, 100,  this);
 	pIconTimer = lv_timer_create(timerIconCB, 1000,  this);
+
+}
+
+void Widgets::img(const void *ptr, size_t len){
+	xImgDsc.header.cf = LV_COLOR_FORMAT_RGB565;
+	xImgDsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+	xImgDsc.header.w = 32;
+	xImgDsc.header.h = 32;
+	xImgDsc.data_size = len;
+	xImgDsc.data = (const uint8_t*)ptr;
+
+	lv_image_set_src(pImg, &xImgDsc);
+	lv_tileview_set_tile_by_index(
+			xTV,
+			1, 0,
+			LV_ANIM_ON);
 
 }
 
