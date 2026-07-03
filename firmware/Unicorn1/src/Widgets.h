@@ -25,7 +25,9 @@ public:
 
 	void message(const char *s);
 
-	void img(const void *ptr, size_t len);
+	void img(const void *ptr, size_t len, const char * msgStr = NULL);
+
+	void setLayout(uint layout);
 
 private:
 	Widgets();
@@ -42,10 +44,6 @@ private:
 	lv_obj_t *xTile1;
 	lv_obj_t *xTile2;
 
-	lv_obj_t *pDrJonLbl;
-	lv_obj_t *pTestLbl;
-	lv_obj_t *pBtmLbl;
-
 	lv_obj_t *pWifiIcon;
 	lv_obj_t *pCloudIcon;
 	lv_obj_t *pDefconIcon;
@@ -55,6 +53,7 @@ private:
 
 	lv_obj_t *pImg;
 	lv_image_dsc_t xImgDsc;
+	lv_obj_t *pScrollTxt;
 
 	lv_style_t xStyleTile;
 	lv_style_t xLabelSt;

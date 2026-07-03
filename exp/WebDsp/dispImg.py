@@ -60,11 +60,15 @@ client.subscribe( pubTopic )
 
 #Publish on Message
 j = {
-   "layout": "layout1",
+   "layout": "layout2",
    "widgets": [
       {
          "type": "img",
-         "data": "home.png"
+         "data": "home"
+      },
+      {
+         "type": "txt",
+         "data": "Hello World"   
       }
    ]
 }

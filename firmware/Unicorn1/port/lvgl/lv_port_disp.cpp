@@ -12,6 +12,7 @@
 extern "C"{
 #include "lvgl.h"
 }
+#include <FreeRTOS.h>
 #include "lv_port_disp.h"
 #include "libraries/pico_graphics/pico_graphics.hpp"
 #include "cosmic_unicorn.hpp"
@@ -23,8 +24,10 @@ CosmicUnicorn cosmic_unicorn;
 
 
 static lv_display_t * display1;
-static uint8_t buf1[MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL];
-static uint8_t buf2[MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL];
+static 	uint8_t *buf1;
+static  	uint8_t *buf2;
+//static uint8_t buf1[MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL];
+//static uint8_t buf2[MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL];
 
 
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map){
@@ -50,14 +53,16 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
 
 
 void lv_port_disp_init(void){
-
 	cosmic_unicorn.init();
 	cosmic_unicorn.set_brightness(0.5);
 
 	display1 = lv_display_create(MY_DISP_HOR_RES, MY_DISP_VER_RES);
 
 	/* Set display buffer for display `display1`. */
-	lv_display_set_buffers(display1, buf1, buf2, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+	size_t bufSize = MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL;
+	buf1 = (uint8_t*)pvPortMalloc(bufSize);
+	buf2 = (uint8_t*)pvPortMalloc(bufSize);
+	lv_display_set_buffers(display1, buf1, buf2, bufSize, LV_DISPLAY_RENDER_MODE_PARTIAL);
 
 	lv_display_set_flush_cb(display1, my_flush_cb);
 }

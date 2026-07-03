@@ -10,11 +10,9 @@
 
 #include "pico/stdlib.h"
 #include "MQTTRouter.h"
-#include "tiny-json.h"
+
 
 #define DISPLAY_TOPIC "home/display"
-#define DISPLAY_BUFFER 80
-#define DISPLAY_JSON_POOL 10
 
 class MQTTRouterDisplay : public MQTTRouter {
 public:
@@ -39,11 +37,7 @@ public:
 			size_t payloadLen, MQTTInterface *interface);
 
 private:
-	// Temporaty storage buffer so we can null terminate the string
-	char pBuffer[DISPLAY_BUFFER];
 
-	// Json decoding buffer
-	json_t pJsonPool[ DISPLAY_JSON_POOL ];
 
 };
 

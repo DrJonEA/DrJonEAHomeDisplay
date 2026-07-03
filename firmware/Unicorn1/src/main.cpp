@@ -36,6 +36,7 @@ extern "C"{
 #include "BlinkAgent.h"
 #include "MQTTRouterDisplay.h"
 #include "DeviceState.h"
+#include "TileAgent.h"
 
 //Check these definitions where added from the makefile
 #ifndef MQTT_CLIENT
@@ -198,7 +199,7 @@ void main_task(void *params){
 
 	mqttAgent.setObserver(DeviceState::singleton());
 	mqttAgent.mqttConnect(mqttTarget, mqttPort, true);
-	mqttAgent.start(tskIDLE_PRIORITY+1);
+	mqttAgent.start(tskIDLE_PRIORITY+2);
 
 
 
@@ -245,10 +246,13 @@ void main_task(void *params){
 
 
 void lvgl_task(void* params){
+	lv_init();
+	lv_port_disp_init();
 	Widgets *widgets = Widgets::singleton();
 
 	lv_tick_set_cb(xTaskGetTickCount);
 	widgets->init();
+	TileAgent::singleton()->start("TileAgent", TASK_PRIORITY);
 	for(;;){
 	  for (int i=0; i < 100; i++){
 		  lv_timer_handler();
@@ -264,7 +268,7 @@ void vLaunch( void) {
     TaskHandle_t task, lvglTask;
 
     xTaskCreate(main_task, "MainThread", 1024 * 1, NULL, TASK_PRIORITY, &task);
-	xTaskCreate(lvgl_task, "LVGLThread", 1024*2, NULL, TASK_PRIORITY, &lvglTask);
+	xTaskCreate(lvgl_task, "LVGLThread", 1024*2, NULL, TASK_PRIORITY+1, &lvglTask);
 
     /* Start the tasks and timer running. */
     vTaskStartScheduler();
@@ -303,8 +307,8 @@ int main( void )
 		printf("Temp: %.2fC\n", pAht10->AHT10_readTemperature(true));
 	}
 
-	lv_init();
-	lv_port_disp_init();
+	//lv_init();
+	//v_port_disp_init();
 
     /* Configure the hardware ready to run the demo. */
     const char *rtos_name;

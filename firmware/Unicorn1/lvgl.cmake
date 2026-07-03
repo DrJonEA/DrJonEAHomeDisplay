@@ -19,6 +19,7 @@ add_library(lvgl STATIC)
 target_sources(lvgl PUBLIC
 	${SOURCES}
 	${PORT_SRC}
+	#${LV_CONF_DIR}/lv_mem_core_freertos.c
 	)
 
 

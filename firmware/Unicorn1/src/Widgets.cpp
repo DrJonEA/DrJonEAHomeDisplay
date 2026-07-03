@@ -80,15 +80,6 @@ void Widgets::init() {
 	lv_obj_align(pHumidity, LV_ALIGN_TOP_LEFT, 0, 15);
 	lv_obj_add_style(pHumidity , &xLabelSt,  LV_PART_MAIN);
 
-	pTestLbl = lv_label_create(xTile1);
-	//lv_label_set_long_mode(pTestLbl, LV_LABEL_LONG_WRAP);     /*Break the long lines*/
-	lv_label_set_text(pTestLbl, "Testing a Scoll Message");
-	//lv_obj_set_width(pTestLbl, 32);  /*Set smaller width to make the lines wrap*/
-	lv_obj_set_style_text_align(pTestLbl, LV_TEXT_ALIGN_LEFT, 0);
-	lv_obj_align(pTestLbl, LV_ALIGN_TOP_LEFT, 0, 4);
-	lv_obj_add_style(pTestLbl , &xLabelStA,  LV_PART_MAIN);
-	xPos = 32;// lv_obj_get_width(pTestLbl);
-	lv_obj_set_pos(pTestLbl,  xPos,  4);
 
 
 	LV_IMAGE_DECLARE(wifi_off);
@@ -112,14 +103,18 @@ void Widgets::init() {
 	pImg = lv_image_create(xTile2);
 	lv_obj_align(pImg, LV_ALIGN_TOP_LEFT, 0, 0);
 
-
+	pScrollTxt = lv_label_create(xTile2);
+	lv_label_set_text(pScrollTxt, "Test");
+	lv_obj_set_style_text_align(pScrollTxt, LV_TEXT_ALIGN_LEFT, 0);
+	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+	lv_obj_add_style(pScrollTxt , &xLabelStA,  LV_PART_MAIN);
 
 	pTimer = lv_timer_create(timerCB, 100,  this);
 	pIconTimer = lv_timer_create(timerIconCB, 1000,  this);
 
 }
 
-void Widgets::img(const void *ptr, size_t len){
+void Widgets::img(const void *ptr, size_t len, const char * msgStr){
 	xImgDsc.header.cf = LV_COLOR_FORMAT_RGB565;
 	xImgDsc.header.magic = LV_IMAGE_HEADER_MAGIC;
 	xImgDsc.header.w = 32;
@@ -127,12 +122,27 @@ void Widgets::img(const void *ptr, size_t len){
 	xImgDsc.data_size = len;
 	xImgDsc.data = (const uint8_t*)ptr;
 
+	printf("Set img %u\n", len);
+
 	lv_image_set_src(pImg, &xImgDsc);
+	if (msgStr == NULL){
+		lv_label_set_text(pScrollTxt, "");
+	} else {
+		printf("Msg set to %s\n", msgStr);
+		lv_label_set_text(pScrollTxt, msgStr);
+	}
 	lv_tileview_set_tile_by_index(
 			xTV,
 			1, 0,
 			LV_ANIM_ON);
 
+}
+
+void Widgets::setLayout(uint layout){
+	lv_tileview_set_tile_by_index(
+				xTV,
+				layout, 0,
+				LV_ANIM_ON);
 }
 
 
@@ -142,10 +152,14 @@ void Widgets::timerCB(lv_timer_t * timer){
 }
 
 void Widgets::timerHandler(lv_timer_t * timer){
-	//printf("Timer to %d\n", xPos);
-	lv_obj_set_pos(pTestLbl,  xPos--,  4);
 
-	int32_t l = lv_obj_get_width(pTestLbl) ;
+	int32_t l = lv_obj_get_width(pScrollTxt) ;
+
+	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, xPos--, 0);
+	//printf("Scroll (%d, %d) at (%d, %d)\n", l, h, xPos, 20);
+	//lv_obj_set_pos(pScrollTxt,  xPos--,  20);
+
+
 	if (xPos < (l * -1)){
 		xPos = 32;//l;
 	}
@@ -207,6 +221,6 @@ void Widgets::timerIconHandler(lv_timer_t * timer){
 
 
 void Widgets::message(const char *s){
-	lv_label_set_text(pTestLbl, s);
+	lv_label_set_text(pScrollTxt, s);
 }
 

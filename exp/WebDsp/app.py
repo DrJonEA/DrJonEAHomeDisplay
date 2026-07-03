@@ -84,7 +84,7 @@ def static_files(filename):
     return send_from_directory(os.path.join(app.root_path, 'static'), filename)
 
 
-@app.route('/img')
+@app.route('/32x32/home')
 def img():
     image_path = os.path.join(app.root_path, 'static', 'home.png')
     if not os.path.exists(image_path):
