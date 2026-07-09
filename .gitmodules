@@ -37,3 +37,6 @@
 [submodule "lib/sensors_PICO"]
 	path = lib/sensors_PICO
 	url = https://github.com/gavinlyonsrepo/sensors_PICO
+[submodule "lib/RPIPicoOnboardNVS"]
+	path = lib/RPIPicoOnboardNVS
+	url = https://github.com/jondurrant/RPIPicoOnboardNVS

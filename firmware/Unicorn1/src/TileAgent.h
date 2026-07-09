@@ -45,6 +45,7 @@ private:
 	static TileAgent * SELF;
 
 	void processJSON();
+	void processConfig();
 
 	// Temporaty storage buffer so we can null terminate the string
 	char pBuffer[REQ_BUFFER];

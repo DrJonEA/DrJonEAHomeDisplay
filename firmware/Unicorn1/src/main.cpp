@@ -176,6 +176,10 @@ void main_task(void *params){
 	WifiHelper::sntpAddServer("ntp.virginmedia.com");
 	WifiHelper::sntpAddServer("ntp2.npl.co.uk");
 	WifiHelper::sntpAddServer("0.uk.pool.ntp.org");
+	int tz = DeviceState::singleton()->getTimeZone();
+	int8_t hours = tz / 60;
+	int8_t min = tz % 60;
+	WifiHelper::sntpSetTimezone(hours, min);
 	WifiHelper::sntpStartSync();
 
 

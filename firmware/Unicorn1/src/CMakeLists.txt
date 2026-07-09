@@ -41,10 +41,12 @@ target_link_libraries(${NAME}
 	 hardware_pio 
 	 hardware_adc 
 	 hardware_dma 
+	 hardware_watchdog
 	 pico_graphics 
 	 cosmic_unicorn
 	 lvgl
 	 
+	 onboard_nvs
 	)
 	
 target_include_directories(${NAME} PRIVATE

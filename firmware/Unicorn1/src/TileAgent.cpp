@@ -8,9 +8,16 @@
 #include "TileAgent.h"
 #include <cstdio>
 #include <cstring>
+#include "pico/aon_timer.h"
 #include "FreeRTOS.h"
+#include "WifiHelper.h"
 #include "Widgets.h"
 #include "Request.h"
+
+#include "DeviceState.h"
+#include "hardware/watchdog.h"
+
+
 
 TileAgent * TileAgent::SELF = NULL;
 
@@ -44,7 +51,7 @@ void TileAgent::run(){
 				xReqBuffer,
 				pBuffer,
 				REQ_BUFFER,
-				1000);
+				10);
 
 		if (length > 0){
 			pBuffer[length] = 0;
@@ -53,6 +60,15 @@ void TileAgent::run(){
 			processJSON();
 			last = to_ms_since_boot (get_absolute_time());
 		}
+
+		int count = stdio_get_until (pBuffer, REQ_BUFFER,  make_timeout_time_ms(100));
+		if (count > 0){
+			count += stdio_get_until (&pBuffer[count], REQ_BUFFER - count,  make_timeout_time_ms(100));
+			pBuffer[count] = 0;
+			printf("Have Config(%d): %s\n", count, pBuffer);
+			processConfig();
+		}
+
 		now = to_ms_since_boot (get_absolute_time());
 		if ((last + TILE_TIME_MS) < now){
 			Widgets::singleton()->setLayout(0);
@@ -167,3 +183,51 @@ void TileAgent::processJSON(){
 
 	}
 }
+
+void TileAgent::processConfig(){
+	json_t const* json = json_create(pBuffer, pJsonPool, REQ_JSON_POOL);
+	if ( !json ) {
+		 printf("Error json create.\n");
+		 return ;
+	}
+
+	json_t const* item;
+
+
+	item = json_getProperty( json, "tz" );
+	if (item  && JSON_INTEGER == json_getType(item)){
+		int tz = json_getInteger(  item );
+		int oldTZ = DeviceState::singleton()->getTimeZone();
+		if (tz != oldTZ){
+			int8_t hours = tz / 60;
+			int8_t min = tz % 60;
+			WifiHelper::sntpSetTimezone(hours, min);
+
+			struct timespec ts;
+			aon_timer_get_time (&ts);
+			ts.tv_sec -= oldTZ * 60;
+			ts.tv_sec += tz * 60;
+			aon_timer_set_time (&ts);
+
+			DeviceState::singleton()->setTimeZone(tz);
+		}
+	} else {
+		printf("TZ not found or wrong format\n");
+	}
+
+	item = json_getProperty( json, "ssid" );
+	if (item ){
+		DeviceState::singleton()->setSSID(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "pwd" );
+	if (item ){
+		DeviceState::singleton()->setSSIDpwd(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "reboot" );
+	if (item ){
+		watchdog_enable(100, 1);
+	}
+}
+

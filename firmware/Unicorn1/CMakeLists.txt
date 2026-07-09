@@ -67,6 +67,9 @@ include("twinThingPicoW.cmake")
 SET(SENSOR_PATH "${LIB_FOLDER}/sensors_PICO" CACHE STRING "Common Lib")
 include(sensors.cmake)
 
+SET(NVS_PATH "${LIB_FOLDER}/RPIPicoOnboardNVS" CACHE STRING "Common Lib")
+include(picoOnboardNVS.cmake)
+
 
 add_subdirectory(src)
 

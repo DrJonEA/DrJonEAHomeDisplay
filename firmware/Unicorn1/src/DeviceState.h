@@ -10,6 +10,18 @@
 
 #include "pico/stdlib.h"
 #include "MQTTAgentObserver.h"
+#include "NVSOnboard.h"
+
+#define DEV_TS 							"TS"
+#define DEV_SSID 					"SSID"
+#define DEV_SSID_PWD 		"SSID_PWD"
+#define DEV_MQTT_HOST 	"MQTT_HOST"
+#define DEV_MQTT_PORT 	"MQTT_PORT"
+#define DEV_MQTT_CLIENT "MQTT_CLIENT"
+#define DEV_MQTT_USER 	"MQTT_USER"
+#define DEV_MQTT_PWD 		"MQTT_PWD"
+#define DEV_HTTP_STR 		"HTTP_REQ"
+
 
 class DeviceState : public MQTTAgentObserver{
 public:
@@ -34,18 +46,35 @@ public:
 	void setDefCon(uint8_t d=5);
 	uint8_t getDefCon();
 
+	int getTimeZone();
+	void setTimeZone(int tz);
+
+
+	char * getSSID();
+	void setSSID(const char *s);
+
+	char * getSSIDpwd();
+	void setSSIDpwd(const char *s);
 
 
 
 private:
 	static DeviceState* SELF ;
 	DeviceState();
+	void setupDefaults();
+
+	char *nvsGet(const char * id, char *str);
+	char *nvsSet(const char * id,  const char * newVal, char *oldVal);
 
 	bool xMQTTOnline = false;
 	bool xWifiOnline = false;
 	float xTemperature = -100.0;
 	float xHumidity = -100.0;
 	uint8_t xDefCon=5;
+
+	char *pSSID = NULL;
+	char *pSSIDpwd = NULL;
+
 
 };
 
