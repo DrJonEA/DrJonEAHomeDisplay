@@ -99,6 +99,58 @@ void DeviceState::setSSIDpwd(const char *s){
 	pSSIDpwd = nvsSet(DEV_SSID_PWD,  s,  pSSIDpwd);
 }
 
+char * DeviceState::getMQTThost(){
+	pMQTThost = nvsGet(DEV_MQTT_HOST, pMQTThost);
+	return pMQTThost;
+}
+void DeviceState::setMQTThost(const char *s){
+	pMQTThost = nvsSet(DEV_MQTT_HOST,  s,  pMQTThost);
+}
+
+char * DeviceState::getMQTTclient(){
+	pMQTTclient = nvsGet(DEV_MQTT_CLIENT, pMQTTclient);
+	return pMQTTclient;
+}
+void DeviceState::setMQTTclient(const char *s){
+	pMQTTclient = nvsSet(DEV_MQTT_CLIENT,  s,  pMQTTclient);
+}
+
+char * DeviceState::getMQTTuser(){
+	pMQTTuser = nvsGet(DEV_MQTT_USER, pMQTTuser);
+	return pMQTTuser;
+}
+void DeviceState::setMQTTuser(const char *s){
+	pMQTTuser = nvsSet(DEV_MQTT_USER,  s,  pMQTTuser);
+}
+
+char * DeviceState::getMQTTpwd(){
+	pMQTTpwd = nvsGet(DEV_MQTT_CLIENT, pMQTTpwd);
+	return pMQTTpwd;
+}
+void DeviceState::setMQTTpwd(const char *s){
+	pMQTTpwd = nvsSet(DEV_MQTT_PWD,  s,  pMQTTpwd);
+}
+
+char * DeviceState::getHTTPconn(){
+	pHTTPconn = nvsGet(DEV_HTTP_STR, pHTTPconn);
+	return pHTTPconn;
+}
+void DeviceState::setHTTPconn(const char *s){
+	pHTTPconn = nvsSet(DEV_HTTP_STR,  s,  pHTTPconn);
+}
+
+int DeviceState::getMQTTport(){
+	int32_t p;
+	NVSOnboard::getInstance()->get_i32 ( DEV_MQTT_PORT , &p);
+	return p;
+}
+void DeviceState::setMQTTport(int p){
+	NVSOnboard *nvs = NVSOnboard::getInstance();
+	nvs->set_i32 ( DEV_TS , p);
+	nvs->commit();
+}
+
+
 
 char *DeviceState::nvsGet(const char * id, char *str){
 	char * res = str;

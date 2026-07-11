@@ -1,12 +1,16 @@
 import logging
 import threading
+from urllib import response
 from flask import Flask, render_template, request, redirect, url_for, Response, jsonify, stream_with_context, send_from_directory
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import paho.mqtt.client as mqtt
 import json
 import time
 import sys
 import os
+from io import BytesIO
+from datetime import datetime, timezone
+import requests
 
 
 # Grab environment variables
@@ -74,6 +78,90 @@ def mqtt_thread():
     mqtt_client.loop_forever()
 
 
+def convert_to_brg565(img):
+    """Convert a PIL Image to RGB565 format and return raw bytes"""
+    img_rgb = img.convert('RGB')
+    width, height = img_rgb.size
+    pixels = img_rgb.load()
+    raw = bytearray()
+    for y in range(height):
+        for x in range(width):
+            r, g, b = pixels[x, y]
+            rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
+            raw.append(rgb565 & 0xFF)
+            raw.append((rgb565 >> 8) & 0xFF)
+    return bytes(raw), width, height
+
+
+def generate_weather_image(lat, lng):
+    """Generate a 32x32 weather forecast image with temperature, weather condition, and rain probability"""
+    weather = {}
+    update(weather, lat, lng)
+    
+    # Create 32x32 image with black background
+    img = Image.new('RGB', (32, 32), color=(0, 0, 0))
+    pixels = img.load()
+    
+    temperature = weather["temperature"]
+    rain_probability = weather["precProb"]
+    
+    # Draw temperature as simple bars (bottom section) with color based on temperature
+    temp_color = (255, 100, 0)  # Orange for temperature
+    if temperature < 5:
+        temp_color = (0, 0, 255)  # Blue for cold
+    elif temperature > 25:
+        temp_color = (255, 0, 0)  # Red for hot
+    elif temperature > 15:
+        temp_color = (255, 255, 0)  # Yellow for warm 
+    else:
+        temp_color = (0, 255, 0)  # Green for mild
+
+    temp_bars = int((temperature / 40) * 8)  # Scale to 0-8 bars
+    for i in range(min(temp_bars, 8)):
+        for y in range(28, 32):
+            pixels[i * 4, y] = temp_color
+            pixels[i * 4 + 1, y] = temp_color
+            pixels[i * 4 + 2, y] = temp_color
+
+    # Draw rain probability as simple bars (right section) with color based on precipitation type
+    percip_color = (100, 150, 255)  # Blue for rain
+    if weather["precType"] == "SNOW":
+        percip_color = (255, 255, 255)  # White for snow
+    elif weather["precType"] == "SLEET":
+        percip_color = (200, 200, 255)  # Light blue for sleet 
+    elif weather["precType"] == "HAIL":
+        percip_color = (150, 150, 255)  # Purple for hail
+    elif weather["precType"] == "FREEZING_RAIN":
+        percip_color = (0, 0, 255)  # Dark blue for freezing rain
+    
+    rain_bars = int((rain_probability / 100) * 8)  # Scale to 0-8 bars
+    for i in range(min(rain_bars, 8)):
+        for x in range(28, 32):
+            pixels[x, i * 4] = percip_color
+            pixels[x, i * 4 + 1] = percip_color
+            pixels[x, i * 4 + 2] = percip_color
+
+    # Paste weather icon
+    iconSize = 12
+    weather["img"].thumbnail((iconSize, iconSize), Image.Resampling.LANCZOS)
+    img.paste(weather["img"], (32 - iconSize, 32 - iconSize))
+
+    # Draw text overlay
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype("slkscr.ttf", size=8)
+    draw.text((0, 0), "%.1fc" % temperature, font=font)
+    draw.text((0, 10), "%.1f%%" % weather["humidity"], font=font)
+
+    font = ImageFont.truetype("slkscr.ttf", size=6)
+    if weather["precProb"]:
+        draw.text((0, 20), "%.1f%%" % weather["precProb"], font=font)
+    elif weather["windSpeed"] > 50:
+        draw.text((0, 20), "%dkmh" % weather["windSpeed"], font=font)
+    
+    return img
+
+
+
 @app.route("/")
 def index():
     return render_template("index.html", message=last_message, topic=MQTT_TOPIC)
@@ -100,8 +188,8 @@ def img():
                 for x in range(width):
                     r, g, b = pixels[x, y]
                     rgb565 = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
-                    raw.append((rgb565 >> 8) & 0xFF)
                     raw.append(rgb565 & 0xFF)
+                    raw.append((rgb565 >> 8) & 0xFF)
 
         headers = {
             'Content-Type': 'application/octet-stream',
@@ -110,6 +198,159 @@ def img():
             'X-Image-Height': str(height),
         }
         return Response(bytes(raw), headers=headers)
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/weather.png')
+def weather_png():
+    """Return weather image as PNG"""
+    try:
+        img = generate_weather_image(50.8, -0.167)  # Brighton coordinates
+        png_buffer = BytesIO()
+        img.save(png_buffer, format='PNG')
+        png_data = png_buffer.getvalue()
+        return Response(png_data, mimetype='image/png')
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/32x32/weather.brg565')
+def weather_brg565():
+    """Return weather image in BRG565 format"""
+    try:
+        img = generate_weather_image(50.8, -0.167)  # Brighton coordinates
+        raw, width, height = convert_to_brg565(img)
+        headers = {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str(len(raw)),
+            'X-Image-Width': str(width),
+            'X-Image-Height': str(height),
+        }
+        return Response(raw, headers=headers)
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/32x32/test.brg565')
+def test_brg565():
+    """Return a 32x32 test image with four colored squares in BRG565 format"""
+    try:
+        # Create 32x32 image with black background
+        img = Image.new('RGB', (32, 32), color=(0, 0, 0))
+        pixels = img.load()
+        
+        # Fill the four quadrants with different colors
+        # Top left: Red (16x16)
+        for x in range(16):
+            for y in range(16):
+                pixels[x, y] = (255, 0, 0)
+        
+        # Top right: Green (16x16)
+        for x in range(16, 32):
+            for y in range(16):
+                pixels[x, y] = (0, 255, 0)
+        
+        # Bottom left: Blue (16x16)
+        for x in range(16):
+            for y in range(16, 32):
+                pixels[x, y] = (0, 0, 255)
+        
+        # Bottom right: White (16x16)
+        for x in range(16, 32):
+            for y in range(16, 32):
+                pixels[x, y] = (255, 255, 255)
+        
+        raw, width, height = convert_to_brg565(img)
+        headers = {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str(len(raw)),
+            'X-Image-Width': str(width),
+            'X-Image-Height': str(height),
+        }
+        return Response(raw, headers=headers)
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/32x32/pride.brg565')
+def pride_brg565():
+    """Return a 32x32 pride flag image with vertical stripes in BRG565 format"""
+    try:
+        # Create 32x32 image with pride flag colors as vertical stripes
+        img = Image.new('RGB', (32, 32), color=(0, 0, 0))
+        pixels = img.load()
+        
+        # Pride flag colors (RGB): Red, Orange, Yellow, Green, Blue, Violet
+        pride_colors = [
+            (255, 0, 0),      # Red
+            (200, 100, 0),    # Orange (darker)
+            (255, 255, 0),    # Yellow
+            (0, 255, 0),      # Green
+            (0, 0, 255),      # Blue
+            (148, 0, 211)     # Violet
+        ]
+        
+        # Distribute 32 pixels across 6 colors (approximately 5-6 pixels each)
+        stripe_width = 32 // 6
+        remainder = 32 % 6
+        
+        x_pos = 0
+        for color_idx, color in enumerate(pride_colors):
+            # Add extra pixel to first few stripes to account for remainder
+            width = stripe_width + (1 if color_idx < remainder else 0)
+            for x in range(x_pos, x_pos + width):
+                for y in range(32):
+                    pixels[x, y] = color
+            x_pos += width
+        
+        raw, width, height = convert_to_brg565(img)
+        headers = {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str(len(raw)),
+            'X-Image-Width': str(width),
+            'X-Image-Height': str(height),
+        }
+        return Response(raw, headers=headers)
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/32x32/pride.png')
+def pride_png():
+    """Return a 32x32 pride flag image with vertical stripes as PNG"""
+    try:
+        # Create 32x32 image with pride flag colors as vertical stripes
+        img = Image.new('RGB', (32, 32), color=(0, 0, 0))
+        pixels = img.load()
+        
+        # Pride flag colors (RGB): Red, Orange, Yellow, Green, Blue, Violet
+        pride_colors = [
+            (255, 0, 0),      # Red
+            (200, 100, 0),    # Orange (darker)
+            (255, 255, 0),    # Yellow
+            (0, 255, 0),      # Green
+            (0, 0, 255),      # Blue
+            (148, 0, 211)     # Violet
+        ]
+        
+        # Distribute 32 pixels across 6 colors (approximately 5-6 pixels each)
+        stripe_width = 32 // 6
+        remainder = 32 % 6
+        
+        x_pos = 0
+        for color_idx, color in enumerate(pride_colors):
+            # Add extra pixel to first few stripes to account for remainder
+            width = stripe_width + (1 if color_idx < remainder else 0)
+            for x in range(x_pos, x_pos + width):
+                for y in range(32):
+                    pixels[x, y] = color
+            x_pos += width
+        
+        png_buffer = BytesIO()
+        img.save(png_buffer, format='PNG')
+        png_data = png_buffer.getvalue()
+        return Response(png_data, mimetype='image/png')
     except Exception as exc:
         return Response(str(exc), status=500)
 
@@ -170,6 +411,36 @@ def events():
     }
     return Response(event_stream(last_id), headers=headers)
 
+
+def update(weather, lat, lng):
+    a = datetime.now(timezone.utc).timestamp()
+    key = os.environ["SMARTCLOCKGOOGLE"]
+    url = ("https://weather.googleapis.com/v1/currentConditions:lookup?" +
+        "key=%s&location.latitude=%f&location.longitude=%f"%(
+            key,
+            lat,
+            lng
+            )
+        )
+    #print(url)
+    x = requests.get(url)
+    j = x.json()
+    #print(json.dumps(j))
+
+    weather["isDaytime"] = j["isDaytime"]
+    weather["temperature"] = j["temperature"]["degrees"]
+    weather["text"] = j["weatherCondition"]["description"]["text"]
+    weather["type"] = j["weatherCondition"]["type"]
+    weather["humidity"] = j["relativeHumidity"]
+    weather["windSpeed"] = j["wind"]["speed"]["value"]
+    weather["windDir"] = j["wind"]["direction"]["degrees"]
+    weather["precProb"] = j["precipitation"]["probability"]["percent"]
+    weather["precQnt"] = j["precipitation"]["qpf"]["quantity"]
+    weather["precType"] = j["precipitation"]["probability"]["type"]
+    weather["icon"] = j["weatherCondition"]["iconBaseUri"]
+    response = requests.get(weather["icon"] + "_dark.png")
+    weather["img"] = Image.open(BytesIO(response.content))
+    weather["updated"] = int(a)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

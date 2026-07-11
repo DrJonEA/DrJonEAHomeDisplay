@@ -151,7 +151,7 @@ void main_task(void *params){
 	cyw43_wifi_pm(&cyw43_state ,CYW43_AGGRESSIVE_PM);
 
 	cyw43_arch_enable_sta_mode();
-	printf("Connecting to WiFi... %s \n", WIFI_SSID);
+	printf("Connecting to WiFi... %s \n",  DeviceState::singleton()->getSSID()); //WIFI_SSID);
 
 	//Loop trying to connect to Wifi
 	int r =-1;
@@ -185,11 +185,18 @@ void main_task(void *params){
 
 
 	// Setup for MQTT Connection
+	/*
 	char mqttTarget[] = MQTT_HOST;
 	int mqttPort = MQTT_PORT;
 	char mqttClient[] = MQTT_CLIENT;
 	char mqttUser[] = MQTT_USER;
 	char mqttPwd[] = MQTT_PASSWD;
+	*/
+	char *mqttTarget 	= DeviceState::singleton()->getMQTThost();
+	int mqttPort 			= DeviceState::singleton()->getMQTTport();
+	char *mqttClient 	= DeviceState::singleton()->getMQTTclient();
+	char *mqttUser 		= DeviceState::singleton()->getMQTTuser();
+	char *mqttPwd 		= DeviceState::singleton()->getMQTTpwd();
 	MQTTRouterDisplay mqttRouter;
 	MQTTAgent mqttAgent;
 

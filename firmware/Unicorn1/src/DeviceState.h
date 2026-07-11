@@ -56,7 +56,23 @@ public:
 	char * getSSIDpwd();
 	void setSSIDpwd(const char *s);
 
+	int getMQTTport();
+	void setMQTTport(int p);
 
+	char * getMQTThost();
+	void setMQTThost(const char *s);
+
+	char * getMQTTclient();
+	void setMQTTclient(const char *s);
+
+	char * getMQTTuser();
+	void setMQTTuser(const char *s);
+
+	char * getMQTTpwd();
+	void setMQTTpwd(const char *s);
+
+	void setHTTPconn(const char *s);
+	char * getHTTPconn();
 
 private:
 	static DeviceState* SELF ;
@@ -74,6 +90,12 @@ private:
 
 	char *pSSID = NULL;
 	char *pSSIDpwd = NULL;
+	char *pMQTThost = NULL;
+	char *pMQTTclient = NULL;
+	char *pMQTTuser = NULL;
+	char *pMQTTpwd = NULL;
+	char *pHTTPconn = NULL;
+
 
 
 };

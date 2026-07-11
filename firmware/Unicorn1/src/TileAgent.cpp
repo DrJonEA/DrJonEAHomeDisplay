@@ -225,6 +225,39 @@ void TileAgent::processConfig(){
 		DeviceState::singleton()->setSSIDpwd(json_getValue(item));
 	}
 
+	item = json_getProperty( json, "mqttHost" );
+	if (item ){
+		DeviceState::singleton()->setMQTThost(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "mqttClientt" );
+	if (item ){
+		DeviceState::singleton()->setMQTTclient(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "mqttUser" );
+	if (item ){
+		DeviceState::singleton()->setMQTTuser(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "mqttPwd" );
+	if (item ){
+		DeviceState::singleton()->setMQTTpwd(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "httpConn" );
+	if (item ){
+		DeviceState::singleton()->setHTTPconn(json_getValue(item));
+	}
+
+	item = json_getProperty( json, "mqttPort" );
+	if (item  && JSON_INTEGER == json_getType(item)){
+		int p = json_getInteger(  item );
+		DeviceState::singleton()->setMQTTport(p);
+	}
+
+
+
 	item = json_getProperty( json, "reboot" );
 	if (item ){
 		watchdog_enable(100, 1);
