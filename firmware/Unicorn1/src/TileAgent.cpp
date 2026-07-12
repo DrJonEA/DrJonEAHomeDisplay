@@ -10,12 +10,18 @@
 #include <cstring>
 #include "pico/aon_timer.h"
 #include "FreeRTOS.h"
+#include "cosmic_unicorn.hpp"
 #include "WifiHelper.h"
 #include "Widgets.h"
 #include "Request.h"
 
 #include "DeviceState.h"
 #include "hardware/watchdog.h"
+
+#include "lv_port_disp.h"
+
+
+extern pimoroni::CosmicUnicorn cosmic_unicorn;
 
 
 
@@ -180,8 +186,27 @@ void TileAgent::processJSON(){
 					delete(req);
 				}
 			} //if layout2
+	} //LAYOUT
 
+	item = json_getProperty( json, "brightness" );
+	if (item && JSON_REAL == json_getType(item)){
+		float f =  json_getReal(  item );
+		if (( f <= 1.0) && ( f >= 0.0)){
+			printf("Brightness set to %f\n", f);
+			cosmic_unicorn.set_brightness(f);
+			lv_obj_invalidate(lv_scr_act());
+		} else {
+			printf("Warning invalid Brightness %f\n", f);
+		}
 	}
+
+	item = json_getProperty( json, "blue" );
+	if (item && JSON_BOOLEAN == json_getType(item)){
+		bool b =  json_getBoolean(  item );
+		lv_port_reduce_blue(b);
+		lv_obj_invalidate(lv_scr_act());
+	}
+
 }
 
 void TileAgent::processConfig(){

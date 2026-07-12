@@ -39,6 +39,8 @@ extern "C" {
 /* Initialize low level display driver */
 void lv_port_disp_init(void);
 
+void lv_port_reduce_blue(bool);
+
 /**********************
  *      MACROS
  **********************/

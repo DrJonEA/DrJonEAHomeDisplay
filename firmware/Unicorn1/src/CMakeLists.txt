@@ -9,6 +9,8 @@ add_executable(${NAME}
         Widgets.cpp
         ClockDisplay.cpp
         TileAgent.cpp
+        TileImage.cpp
+        TileDefault.cpp
         
         icons/cloud_off.c
         icons/cloud_on.c

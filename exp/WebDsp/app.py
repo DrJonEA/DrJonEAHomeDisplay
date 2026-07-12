@@ -148,8 +148,9 @@ def generate_weather_image(lat, lng):
 
     # Draw text overlay
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("slkscr.ttf", size=8)
+    font = ImageFont.truetype("slkscr.ttf", size=10)
     draw.text((0, 0), "%.1fc" % temperature, font=font)
+    font = ImageFont.truetype("slkscr.ttf", size=8)
     draw.text((0, 10), "%.1f%%" % weather["humidity"], font=font)
 
     font = ImageFont.truetype("slkscr.ttf", size=6)

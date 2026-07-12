@@ -21,7 +21,7 @@ extern "C"{
 
 using namespace pimoroni;
 CosmicUnicorn cosmic_unicorn;
-
+bool reduce_blue = false;
 
 static lv_display_t * display1;
 static 	uint8_t *buf1;
@@ -29,6 +29,9 @@ static  	uint8_t *buf2;
 //static uint8_t buf1[MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL];
 //static uint8_t buf2[MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL];
 
+void lv_port_reduce_blue(bool b){
+	reduce_blue = b;
+}
 
 void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_map){
 
@@ -39,10 +42,18 @@ void my_flush_cb(lv_display_t * display, const lv_area_t * area, uint8_t * px_ma
         	uint8_t b = *buf++;
         	uint8_t g = *buf++;
         	uint8_t r = *buf++;
-        	cosmic_unicorn.set_pixel(
+        	if (!reduce_blue){
+        		cosmic_unicorn.set_pixel(
         	        			x,  y,
         						r,g,b
         						);
+        	} else {
+        		cosmic_unicorn.set_pixel(
+								x,  y,
+								r,g,
+								b/2
+								);
+        	}
         }
     }
 
