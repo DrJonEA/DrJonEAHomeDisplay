@@ -13,6 +13,7 @@
 #include "tiny-json.h"
 #include "FreeRTOS.h"
 #include "message_buffer.h"
+#include "MQTTInterface.h"
 
 #define REQ_BUFFER 256
 #define REQ_COUNT 5
@@ -40,12 +41,15 @@ public:
 
 	void processRequest(const void *req, size_t length);
 
+	void setInterface(MQTTInterface *p);
+
 private:
 	TileAgent();
 	static TileAgent * SELF;
 
 	void processJSON();
 	void processConfig();
+	void sendSensors();
 
 	// Temporaty storage buffer so we can null terminate the string
 	char pBuffer[REQ_BUFFER];
@@ -56,6 +60,10 @@ private:
 	MessageBufferHandle_t xReqBuffer;
 
 	char * pImgBuffer = NULL;
+
+	MQTTInterface *pInterface = NULL;
+
+	char *pPubTopic = NULL;
 
 };
 

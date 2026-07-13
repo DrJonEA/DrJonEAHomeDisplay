@@ -150,6 +150,22 @@ void DeviceState::setMQTTport(int p){
 	nvs->commit();
 }
 
+char * DeviceState::getTopicOrg(){
+	pTopicOrg = nvsGet(DEV_TOPIC_ORG, pTopicOrg);
+	return pTopicOrg;
+}
+void DeviceState::setTopicOrg(const char *s){
+	pTopicOrg = nvsSet(DEV_TOPIC_ORG,  s,  pTopicOrg);
+}
+
+char * DeviceState::getTopicGroup(){
+	pTopicGroup = nvsGet(DEV_TOPIC_GROUP, pTopicGroup);
+	return pTopicGroup;
+}
+void DeviceState::setTopicGroup(const char *s){
+	pTopicGroup = nvsSet(DEV_TOPIC_GROUP,  s,  pTopicGroup);
+}
+
 
 
 char *DeviceState::nvsGet(const char * id, char *str){
@@ -216,8 +232,17 @@ void DeviceState::setupDefaults(){
 		nvs->set_str ( DEV_HTTP_STR , "http://jons-mbs:5080/");
 	}
 
-	if (nvs->commit() != NVS_OK){
-		printf("NVS Setup Default Failed\n");
+	if (!nvs->contains(DEV_TOPIC_ORG)){
+		nvs->set_str ( DEV_TOPIC_ORG , "drjonea");
+	}
+	if (!nvs->contains(DEV_TOPIC_GROUP)){
+		nvs->set_str ( DEV_TOPIC_GROUP , "cosmic");
+	}
+
+	if (nvs->isDirty()){
+		if (nvs->commit() != NVS_OK){
+			printf("NVS Setup Default Failed\n");
+		}
 	}
 
 }

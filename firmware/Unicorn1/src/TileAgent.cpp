@@ -18,6 +18,8 @@
 #include "DeviceState.h"
 #include "hardware/watchdog.h"
 
+#include <json-maker/json-maker.h>
+
 #include "lv_port_disp.h"
 
 
@@ -43,10 +45,31 @@ TileAgent::TileAgent() {
 	if (!pImgBuffer){
 		printf("ERROR: could not allocate Image Buffer\n");
 	}
+
+	size_t l =
+			strlen(DeviceState::singleton()->getTopicOrg()) +
+			strlen("/sensor/") +
+			strlen(DeviceState::singleton()->getTopicGroup()) +
+			1 + // /
+			strlen(DeviceState::singleton()->getMQTTclient()) +
+			1 ;// NULL;
+	pPubTopic = (char *)pvPortMalloc(l);
+	if (pPubTopic){
+		sprintf(pPubTopic, "%s/sensor/%s/%s",
+				DeviceState::singleton()->getTopicOrg(),
+				DeviceState::singleton()->getTopicGroup(),
+				DeviceState::singleton()->getMQTTclient()
+				);
+	}
 }
 
 TileAgent::~TileAgent() {
-	// TODO Auto-generated destructor stub
+	if (pPubTopic)
+		vPortFree(pPubTopic);
+	if (xReqBuffer)
+		vPortFree(xReqBuffer);
+	if (pImgBuffer)
+		vPortFree(pImgBuffer);
 }
 
 void TileAgent::run(){
@@ -79,6 +102,7 @@ void TileAgent::run(){
 		if ((last + TILE_TIME_MS) < now){
 			Widgets::singleton()->setLayout(0);
 			last = now;
+			sendSensors();
 		}
 		vTaskDelay(1000);
 	}
@@ -207,6 +231,14 @@ void TileAgent::processJSON(){
 		lv_obj_invalidate(lv_scr_act());
 	}
 
+	item = json_getProperty( json, "defcon" );
+	if (item && JSON_INTEGER == json_getType(item)){
+		int i =  json_getInteger(  item );
+		if (i > 0 && i <=5){
+			DeviceState::singleton()->setDefCon(i);
+		}
+	}
+
 }
 
 void TileAgent::processConfig(){
@@ -289,3 +321,43 @@ void TileAgent::processConfig(){
 	}
 }
 
+void TileAgent::sendSensors(){
+	char *s = pBuffer;
+	size_t rem = REQ_BUFFER;
+
+	if (!pInterface){
+		return;
+	}
+	if (!pPubTopic){
+		return;
+	}
+
+	s = json_objOpen( s , NULL, &rem );
+
+	s = json_str(s, "id", pInterface->getId(), &rem);
+	s =  json_double(
+			s,
+			"temperature",
+			DeviceState::singleton()->getTemperature(),
+			&rem );
+	s =  json_double(
+			s,
+			"humidity",
+			DeviceState::singleton()->getHumidity(),
+			&rem );
+
+	s = json_objClose( s , &rem );
+	s = json_objClose(s, &rem);
+
+	pInterface->pubToTopic(
+			pPubTopic,
+			pBuffer,
+			strlen(pBuffer),
+			1,
+			false);
+}
+
+
+void TileAgent::setInterface(MQTTInterface *p){
+	pInterface = p;
+}

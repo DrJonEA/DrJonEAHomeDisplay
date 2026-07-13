@@ -34,7 +34,7 @@ else:
     print("User: %s"%user)    
 
 #Set up topic name
-pubTopic = "home/display"
+pubTopic = "drjonea/display"
 
 # The callback for when the client receives a CONNACK response from the broker.
 def on_connect(client, userdata, flags, reason_code, properties):

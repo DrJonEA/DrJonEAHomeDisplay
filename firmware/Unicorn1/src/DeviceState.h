@@ -21,6 +21,8 @@
 #define DEV_MQTT_USER 	"MQTT_USER"
 #define DEV_MQTT_PWD 		"MQTT_PWD"
 #define DEV_HTTP_STR 		"HTTP_REQ"
+#define DEV_TOPIC_ORG 		"ORG"
+#define DEV_TOPIC_GROUP 	"GRP"
 
 
 class DeviceState : public MQTTAgentObserver{
@@ -74,6 +76,12 @@ public:
 	void setHTTPconn(const char *s);
 	char * getHTTPconn();
 
+	void setTopicOrg(const char *s);
+	char * getTopicOrg();
+
+	void setTopicGroup(const char *s);
+	char * getTopicGroup();
+
 private:
 	static DeviceState* SELF ;
 	DeviceState();
@@ -96,7 +104,8 @@ private:
 	char *pMQTTpwd = NULL;
 	char *pHTTPconn = NULL;
 
-
+	char *pTopicOrg = NULL;
+	char *pTopicGroup = NULL;
 
 };
 

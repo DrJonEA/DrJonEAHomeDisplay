@@ -10,9 +10,8 @@
 
 #include "pico/stdlib.h"
 #include "MQTTRouter.h"
+#include "DeviceState.h"
 
-
-#define DISPLAY_TOPIC "home/display"
 
 class MQTTRouterDisplay : public MQTTRouter {
 public:
@@ -37,6 +36,9 @@ public:
 			size_t payloadLen, MQTTInterface *interface);
 
 private:
+	char * pDisplayTopic = NULL;
+	char * pGroupTopic = NULL;
+	char * pDeviceTopic = NULL;
 
 
 };

@@ -29,7 +29,7 @@ void TileDefault::init(lv_obj_t *parent){
 	pScrollTxt = lv_label_create(parent);
 	lv_label_set_text(pScrollTxt, "Test");
 	lv_obj_set_style_text_align(pScrollTxt, LV_TEXT_ALIGN_LEFT, 0);
-	lv_obj_align(pScrollTxt, LV_ALIGN_TOP_LEFT, 0, 10);
+	lv_obj_align(pScrollTxt, LV_ALIGN_TOP_LEFT, 32, 10);
 	lv_obj_add_style(pScrollTxt , &xLabelSt,  LV_PART_MAIN);
 	lv_obj_add_flag(pScrollTxt, LV_OBJ_FLAG_HIDDEN);
 
@@ -79,7 +79,8 @@ void TileDefault::timerHandler(lv_timer_t * timer){
 
 	int32_t l = lv_obj_get_width(pScrollTxt) ;
 
-	lv_obj_align(pScrollTxt, LV_ALIGN_TOP_RIGHT, xPos--, 10);
+	//printf("SCROLL %d\n", xPos);
+	lv_obj_align(pScrollTxt, LV_ALIGN_TOP_LEFT, xPos--, 10);
 
 
 	if (xPos < (l * -1)){
@@ -155,7 +156,7 @@ void TileDefault::message(const char *s){
 	xMsgCount = 0;
 
 	lv_label_set_text(pScrollTxt, s);
-	lv_obj_align(pScrollTxt, LV_ALIGN_TOP_RIGHT, xPos--, 10);
+	lv_obj_align(pScrollTxt, LV_ALIGN_TOP_LEFT, xPos, 10);
 	lv_obj_clear_flag(pScrollTxt, LV_OBJ_FLAG_HIDDEN);
 	lv_obj_add_flag(pTemperature, LV_OBJ_FLAG_HIDDEN);
 	lv_obj_add_flag(pHumidity, LV_OBJ_FLAG_HIDDEN);

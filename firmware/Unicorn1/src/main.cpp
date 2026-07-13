@@ -204,6 +204,8 @@ void main_task(void *params){
 	mqttAgent.credentials(mqttUser, mqttPwd, mqttClient);
 	mqttAgent.setRouter(&mqttRouter);
 
+
+
 	printf("Connecting to: %s(%d)\n", mqttTarget, mqttPort);
 	printf("Client id: %.4s...\n", mqttAgent.getId());
 	printf("User id: %.4s...\n", mqttUser);
@@ -211,7 +213,7 @@ void main_task(void *params){
 	mqttAgent.setObserver(DeviceState::singleton());
 	mqttAgent.mqttConnect(mqttTarget, mqttPort, true);
 	mqttAgent.start(tskIDLE_PRIORITY+2);
-
+	TileAgent::singleton()->setInterface(&mqttAgent);
 
 
     while(true) {
