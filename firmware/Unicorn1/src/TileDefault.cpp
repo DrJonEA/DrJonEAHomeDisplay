@@ -9,9 +9,10 @@
 #include <cstdio>
 #include "DeviceState.h"
 
+extern const lv_font_t SilkScreen12;
+
 TileDefault::TileDefault() {
 	// TODO Auto-generated constructor stub
-
 }
 
 TileDefault::~TileDefault() {
@@ -22,6 +23,7 @@ void TileDefault::init(lv_obj_t *parent){
 
 	lv_style_init(&xLabelSt);
 	lv_style_set_text_font(&xLabelSt, &lv_font_montserrat_10);
+	//lv_style_set_text_font(&xLabelSt, &SilkScreen10);
 	lv_style_set_text_color(
 			&xLabelSt,
 			lv_color_make(0, 0xF0, 0xF0));

@@ -51,6 +51,8 @@ private:
 	void processConfig();
 	void sendSensors();
 
+	void changeTimezone(int minOffset);
+
 	// Temporaty storage buffer so we can null terminate the string
 	char pBuffer[REQ_BUFFER];
 

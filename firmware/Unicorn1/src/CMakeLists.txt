@@ -21,6 +21,7 @@ add_executable(${NAME}
         icons/defcon3.c
         icons/defcon4.c
         icons/defcon5.c
+        #SilkScreen10.c
         )
 
 # Pull in our pico_stdlib which pulls in commonly used features

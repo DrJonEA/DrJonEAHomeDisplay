@@ -245,6 +245,12 @@ void TileAgent::processJSON(){
 		}
 	}
 
+	item = json_getProperty( json, "tz" );
+	if (item && JSON_INTEGER == json_getType(item)){
+		int tz =  json_getInteger(  item );
+		changeTimezone(tz);
+	}
+
 }
 
 void TileAgent::processConfig(){
@@ -260,20 +266,7 @@ void TileAgent::processConfig(){
 	item = json_getProperty( json, "tz" );
 	if (item  && JSON_INTEGER == json_getType(item)){
 		int tz = json_getInteger(  item );
-		int oldTZ = DeviceState::singleton()->getTimeZone();
-		if (tz != oldTZ){
-			int8_t hours = tz / 60;
-			int8_t min = tz % 60;
-			WifiHelper::sntpSetTimezone(hours, min);
-
-			struct timespec ts;
-			aon_timer_get_time (&ts);
-			ts.tv_sec -= oldTZ * 60;
-			ts.tv_sec += tz * 60;
-			aon_timer_set_time (&ts);
-
-			DeviceState::singleton()->setTimeZone(tz);
-		}
+		changeTimezone(tz);
 	} else {
 		printf("TZ not found or wrong format\n");
 	}
@@ -370,4 +363,21 @@ void TileAgent::sendSensors(){
 
 void TileAgent::setInterface(MQTTInterface *p){
 	pInterface = p;
+}
+
+void TileAgent::changeTimezone(int tz){
+	int oldTZ = DeviceState::singleton()->getTimeZone();
+	if (tz != oldTZ){
+		int8_t hours = tz / 60;
+		int8_t min = tz % 60;
+		WifiHelper::sntpSetTimezone(hours, min);
+
+		struct timespec ts;
+		aon_timer_get_time (&ts);
+		ts.tv_sec -= oldTZ * 60;
+		ts.tv_sec += tz * 60;
+		aon_timer_set_time (&ts);
+
+		DeviceState::singleton()->setTimeZone(tz);
+	}
 }
