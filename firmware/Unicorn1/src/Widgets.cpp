@@ -51,8 +51,9 @@ void Widgets::init() {
 	xTileImage.init(pTile2);
 }
 
-void Widgets::img(const void *ptr, size_t len, const char * msgStr){
+void Widgets::img(const void *ptr, size_t len, const char * msgStr, bool clock){
 	xTileImage.img(ptr, len, msgStr);
+	xTileImage.showClock(clock);
 	lv_tileview_set_tile_by_index(
 			pTV,
 			1, 0,

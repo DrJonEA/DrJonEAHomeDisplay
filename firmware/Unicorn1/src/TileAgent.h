@@ -17,7 +17,7 @@
 
 #define REQ_BUFFER 256
 #define REQ_COUNT 5
-#define REQ_JSON_POOL 10
+#define REQ_JSON_POOL 12
 #define IMG_BUFFER 2500
 
 #define TILE_TIME_MS 10000

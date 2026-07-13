@@ -27,7 +27,7 @@ public:
 
 	void message(const char *s);
 
-	void img(const void *ptr, size_t len, const char * msgStr = NULL);
+	void img(const void *ptr, size_t len, const char * msgStr = NULL, bool clock = false);
 
 	void setLayout(uint layout);
 

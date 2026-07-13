@@ -13,6 +13,9 @@ public:
 
     void init(lv_obj_t * parent);
 
+    void show(bool b);
+    void hide();
+
 private:
     static void timerCb(lv_timer_t * timer);
     void timerHandler(lv_timer_t * timer);
@@ -21,6 +24,7 @@ private:
     static void anim_roll_ready(lv_anim_t * a);
     void roll_digit(lv_obj_t * current, lv_obj_t * next, char digit);
 
+    lv_obj_t * pClock;
     lv_obj_t * pHourTen;
     lv_obj_t * pHourTenAnim;
     lv_obj_t * pHourUnit;
@@ -33,6 +37,7 @@ private:
 
     lv_style_t xStyleRoller;
     lv_style_t xStyleColon;
+    lv_style_t xStyleClock;
     lv_timer_t * pTimerClk;
 
     struct tm xTime;

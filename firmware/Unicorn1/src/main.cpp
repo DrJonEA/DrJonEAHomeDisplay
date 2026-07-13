@@ -12,6 +12,7 @@
 
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
+#include "hardware/watchdog.h"
 #include <stdio.h>
 
 extern "C"{
@@ -259,6 +260,7 @@ void main_task(void *params){
 
 
 void lvgl_task(void* params){
+	watchdog_enable(1000, 1);
 	lv_init();
 	lv_port_disp_init();
 	Widgets *widgets = Widgets::singleton();
@@ -269,6 +271,7 @@ void lvgl_task(void* params){
 	for(;;){
 	  for (int i=0; i < 100; i++){
 		  lv_timer_handler();
+		  watchdog_update();
 		 vTaskDelay(1);
 	  }
 	  //printf("Tick\n");

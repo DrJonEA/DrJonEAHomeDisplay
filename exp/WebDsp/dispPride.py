@@ -65,6 +65,13 @@ j = {
       {
          "type": "img",
          "data": "pride.brg565"
+      },
+      {
+         "type": "txt",
+         "data": "Pride"
+      },
+      {
+         "type": "clock"
       }
    ]
 }

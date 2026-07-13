@@ -173,6 +173,7 @@ void TileAgent::processJSON(){
 				widget = json_getChild(widgets);
 				const char *msgStr = NULL;
 				const char *imgName = NULL;
+				bool clock = false;
 				while (widget){
 					item = json_getProperty(widget, "type");
 					if (item && strcmp(json_getValue(item), "txt")==0){
@@ -187,6 +188,10 @@ void TileAgent::processJSON(){
 						if (item){
 							imgName = json_getValue(item);
 						}
+					}
+
+					if (item && strcmp(json_getValue(item), "clock")==0){
+						clock = true;
 					}
 
 					widget = json_getSibling(widget);
@@ -204,7 +209,8 @@ void TileAgent::processJSON(){
 						Widgets::singleton()->img(
 								(void *)req->getPayload(),
 								req->getPayloadLen(),
-								msgStr
+								msgStr,
+								clock
 								);
 					}
 					delete(req);
@@ -317,7 +323,11 @@ void TileAgent::processConfig(){
 
 	item = json_getProperty( json, "reboot" );
 	if (item ){
-		watchdog_enable(100, 1);
+		 taskENTER_CRITICAL(  );
+		 for (;;){
+			 // For reboot by holding processor
+		 }
+		 taskEXIT_CRITICAL(  );
 	}
 }
 

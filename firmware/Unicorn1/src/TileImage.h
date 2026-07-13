@@ -12,6 +12,7 @@
 #include "src/core/lv_obj.h"
 #include "src/misc/lv_area.h"
 #include "pico/stdlib.h"
+#include "ClockDisplay.h"
 
 class TileImage {
 public:
@@ -23,6 +24,9 @@ public:
 	void message(const char *s);
 
 	void img(const void *ptr, size_t len, const char * msgStr = NULL);
+
+	void showClock(bool b = true);
+	void hideClock();
 
 private:
 	static void timerCB(lv_timer_t * timer);
@@ -37,6 +41,9 @@ private:
 	lv_timer_t * pTimer;
 
 	int32_t xPos = 0;
+	int32_t xScrollY = 0;
+
+	ClockDisplay clockDisplay;
 };
 
 #endif /* FIRMWARE_UNICORN1_SRC_TILEIMAGE_H_ */

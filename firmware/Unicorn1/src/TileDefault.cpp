@@ -125,11 +125,38 @@ void TileDefault::timerIconHandler(lv_timer_t * timer){
 	}
 
 	char buf[10];
-	sprintf(buf, "%.1fC", DeviceState::singleton()->getTemperature());
+	float temp = DeviceState::singleton()->getTemperature();
+	sprintf(buf, "%.1fC", temp);
 	lv_label_set_text(pTemperature, buf);
 
 	sprintf(buf, "%.1f%%", DeviceState::singleton()->getHumidity());
 	lv_label_set_text(pHumidity, buf);
+
+	if (temp < 10.0){
+		lv_style_set_text_color(
+				&xLabelSt,
+				lv_color_make(0x1E, 0x5A, 0xC8));
+	} else if (temp < 15.0){
+		lv_style_set_text_color(
+				&xLabelSt,
+				lv_color_make(0x3C, 0xA0, 0xDC));
+	} else if (temp < 20.0) {
+		lv_style_set_text_color(
+				&xLabelSt,
+				lv_color_make(0x50, 0xBE, 0x96));
+	} else if (temp < 24.0) {
+		lv_style_set_text_color(
+				&xLabelSt,
+				lv_color_make(0xA0, 0xC8, 0x3C));
+	} else if (temp < 28.0){
+		lv_style_set_text_color(
+				&xLabelSt,
+				lv_color_make(0xF0, 0xA0, 0x28));
+	} else {
+		lv_style_set_text_color(
+				&xLabelSt,
+				lv_color_make(0xDC, 0x32, 0x28));
+	}
 
 	switch(DeviceState::singleton()->getDefCon()){
 	case 1:

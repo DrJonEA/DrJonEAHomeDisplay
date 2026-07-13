@@ -32,8 +32,11 @@ void TileImage::init(lv_obj_t *parent){
 	pScrollTxt = lv_label_create(parent);
 	lv_label_set_text(pScrollTxt, "Test");
 	lv_obj_set_style_text_align(pScrollTxt, LV_TEXT_ALIGN_LEFT, 0);
-	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, 0, xScrollY);
 	lv_obj_add_style(pScrollTxt , &xLabelStA,  LV_PART_MAIN);
+
+	clockDisplay.init(parent);
+	clockDisplay.hide();
 
 	pTimer = lv_timer_create(timerCB, 100,  this);
 
@@ -68,9 +71,21 @@ void TileImage::timerHandler(lv_timer_t * timer){
 
 	int32_t l = lv_obj_get_width(pScrollTxt) ;
 
-	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, xPos--, 0);
+	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, xPos--, xScrollY);
 
 	if (xPos < (l * -1)){
 		xPos = 32;//l;
 	}
+}
+
+void TileImage::showClock(bool b){
+	clockDisplay.show(b);
+	if (b){
+		xScrollY = -8;
+	} else {
+		xScrollY = 0;
+	}
+}
+void TileImage::hideClock(){
+	showClock(false);
 }
