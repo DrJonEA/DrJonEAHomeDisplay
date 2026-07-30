@@ -93,6 +93,34 @@ def convert_to_brg565(img):
     return bytes(raw), width, height
 
 
+def generate_calendar_image():
+    """Generate a 32x32 calendar image showing day of week, day, and month from system clock"""
+    now = datetime.now()
+    day = now.day
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    month_abbr = month_names[now.month - 1]
+    dow_abbr = now.strftime("%a")[:2]  # Two letter day of week abbreviation
+    
+    # Create 32x32 image with black background
+    img = Image.new('RGB', (32, 32), color=(0, 0, 0))
+    
+    # Draw text overlay
+    draw = ImageDraw.Draw(img)
+    
+    # Use bitmap font to avoid antialiasing
+    font_small = ImageFont.load_default()
+    font_large = ImageFont.load_default()
+    
+    # Draw day of week and day on same line (top)
+    draw.text((2, 2), dow_abbr, font=font_small, fill=(200, 200, 255))
+    draw.text((16, 2), "%02d" % day, font=font_large, fill=(255, 255, 255))
+    
+    # Draw month (below)
+    draw.text((2, 14), month_abbr, font=font_large, fill=(255, 255, 50))
+    
+    return img
+
+
 def generate_weather_image(lat, lng):
     """Generate a 32x32 weather forecast image with temperature, weather condition, and rain probability"""
     weather = {}
@@ -148,16 +176,15 @@ def generate_weather_image(lat, lng):
 
     # Draw text overlay
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("slkscr.ttf", size=10)
-    draw.text((0, 0), "%.1fc" % temperature, font=font)
-    font = ImageFont.truetype("slkscr.ttf", size=8)
-    draw.text((0, 10), "%.1f%%" % weather["humidity"], font=font)
+    font = ImageFont.load_default()
+    
+    draw.text((0, 0), "%.1fc" % temperature, font=font, fill=(255, 255, 255))
+    draw.text((0, 10), "%.1f%%" % weather["humidity"], font=font, fill=(255, 255, 255))
 
-    font = ImageFont.truetype("slkscr.ttf", size=6)
     if weather["precProb"]:
-        draw.text((0, 20), "%.1f%%" % weather["precProb"], font=font)
+        draw.text((0, 20), "%.1f%%" % weather["precProb"], font=font, fill=(255, 255, 255))
     elif weather["windSpeed"] > 50:
-        draw.text((0, 20), "%dkmh" % weather["windSpeed"], font=font)
+        draw.text((0, 20), "%dkmh" % weather["windSpeed"], font=font, fill=(255, 255, 255))
     
     return img
 
@@ -348,6 +375,36 @@ def pride_png():
                     pixels[x, y] = color
             x_pos += width
         
+        png_buffer = BytesIO()
+        img.save(png_buffer, format='PNG')
+        png_data = png_buffer.getvalue()
+        return Response(png_data, mimetype='image/png')
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/32x32/cal.brg565')
+def cal_brg565():
+    """Return calendar image in BRG565 format"""
+    try:
+        img = generate_calendar_image()
+        raw, width, height = convert_to_brg565(img)
+        headers = {
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': str(len(raw)),
+            'X-Image-Width': str(width),
+            'X-Image-Height': str(height),
+        }
+        return Response(raw, headers=headers)
+    except Exception as exc:
+        return Response(str(exc), status=500)
+
+
+@app.route('/32x32/cal.png')
+def cal_png():
+    """Return calendar image as PNG"""
+    try:
+        img = generate_calendar_image()
         png_buffer = BytesIO()
         img.save(png_buffer, format='PNG')
         png_data = png_buffer.getvalue()

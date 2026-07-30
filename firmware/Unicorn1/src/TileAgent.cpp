@@ -200,7 +200,8 @@ void TileAgent::processJSON(){
 				if (imgName != NULL){
 					Request *req = new Request(pImgBuffer, IMG_BUFFER);
 					sprintf(pBuffer, "%s/32x32/%s",
-							"http://jons-mbp.local.jondurrant.com:5080",
+							//"http://jons-mbp.local.jondurrant.com:5080",
+							DeviceState::singleton()->getHTTPconn(),
 							imgName
 							);
 					req->get(pBuffer);
