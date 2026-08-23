@@ -79,7 +79,6 @@ void DeviceState::setTimeZone(int tz){
 	newTZ = tz;
 	if (oldTZ != newTZ){
 		nvs->set_i32 ( DEV_TS , tz);
-		nvs->commit();
 	}
 }
 
@@ -124,7 +123,7 @@ void DeviceState::setMQTTuser(const char *s){
 }
 
 char * DeviceState::getMQTTpwd(){
-	pMQTTpwd = nvsGet(DEV_MQTT_CLIENT, pMQTTpwd);
+	pMQTTpwd = nvsGet(DEV_MQTT_PWD, pMQTTpwd);
 	return pMQTTpwd;
 }
 void DeviceState::setMQTTpwd(const char *s){
@@ -147,7 +146,6 @@ int DeviceState::getMQTTport(){
 void DeviceState::setMQTTport(int p){
 	NVSOnboard *nvs = NVSOnboard::getInstance();
 	nvs->set_i32 ( DEV_TS , p);
-	nvs->commit();
 }
 
 char * DeviceState::getTopicOrg(){
@@ -188,7 +186,6 @@ char *DeviceState::nvsSet(const char * id,  const char * newVal, char *oldVal){
 	char * res  =(char*) pvPortMalloc(length);
 	strcpy(res, newVal);
 	nvs->set_str ( id, res);
-	nvs->commit();
 	return res;
 }
 
@@ -245,4 +242,13 @@ void DeviceState::setupDefaults(){
 		}
 	}
 
+}
+
+void DeviceState::storeConfig(){
+	NVSOnboard *nvs = NVSOnboard::getInstance();
+	if (nvs->isDirty()){
+		if (nvs->commit() != NVS_OK){
+			printf("NVS Store Config Failed\n");
+		}
+	}
 }

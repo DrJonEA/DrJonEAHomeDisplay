@@ -91,10 +91,15 @@ void TileAgent::run(){
 		}
 
 		int count = stdio_get_until (pBuffer, REQ_BUFFER,  make_timeout_time_ms(100));
-		if (count > 0){
-			count += stdio_get_until (&pBuffer[count], REQ_BUFFER - count,  make_timeout_time_ms(100));
-			pBuffer[count] = 0;
-			printf("Have Config(%d): %s\n", count, pBuffer);
+		int pos = count;
+		while (count > 0){
+			count = stdio_get_until (&pBuffer[pos], REQ_BUFFER - pos,  make_timeout_time_ms(100));
+			pos += count;
+		}
+		if (pos > 0){
+			pos++;
+			pBuffer[pos] = 0;
+			printf("Have Config(%d): %s\n", pos, pBuffer);
 			processConfig();
 		}
 
@@ -287,7 +292,7 @@ void TileAgent::processConfig(){
 		DeviceState::singleton()->setMQTThost(json_getValue(item));
 	}
 
-	item = json_getProperty( json, "mqttClientt" );
+	item = json_getProperty( json, "mqttClient" );
 	if (item ){
 		DeviceState::singleton()->setMQTTclient(json_getValue(item));
 	}
@@ -313,7 +318,7 @@ void TileAgent::processConfig(){
 		DeviceState::singleton()->setMQTTport(p);
 	}
 
-
+	DeviceState::singleton()->storeConfig();
 
 	item = json_getProperty( json, "reboot" );
 	if (item ){

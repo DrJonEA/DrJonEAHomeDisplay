@@ -211,6 +211,10 @@ void main_task(void *params){
 	printf("Client id: %.4s...\n", mqttAgent.getId());
 	printf("User id: %.4s...\n", mqttUser);
 
+	printf("Client id: %s\n", mqttAgent.getId());
+	printf("User id: %s\n", mqttUser);
+	printf("Passwd: %s\n", mqttPwd);
+
 	mqttAgent.setObserver(DeviceState::singleton());
 	mqttAgent.mqttConnect(mqttTarget, mqttPort, true);
 	mqttAgent.start(tskIDLE_PRIORITY+2);

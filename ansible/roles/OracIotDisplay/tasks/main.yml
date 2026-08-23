@@ -1,0 +1,95 @@
+---
+- name: Check required variables
+  fail: msg="Variable '{{ item }}' is not defined"
+  when: lookup('vars', item, default=none) is none
+  with_items: 
+    - OracEnv
+    - mqtt_shadow_key
+    - OracDBServ
+    - OracDBPort
+    - OracDBUser
+    - OracDBPasswd
+    - OracDBSchema
+    - OracCAName
+    - MQTTServ
+    - MQTTPort
+    - ProvisioningServer
+    - WIFI_SSID
+    - WIFI_PASSWORD
+    - HTTPConn
+
+- name: Default clientid
+  set_fact:
+    clientid: "{{ inventory_hostname }}"
+  when: clientid is not defined
+
+- name: Display Policies ACL
+  include_role:
+    name: OracEmqxAcl
+  vars:
+    policy: "{{ acl_policy }}"
+    clientid: "{{ inventory_hostname }}"
+    dbhost: "{{ OracDBServ }}"
+    dbuser: "{{ OracDBUser }}"
+    dbpasswd: "{{ OracDBPasswd }}"
+    dbport: "{{ OracDBPort }}"
+    dbname: "{{ OracDBSchema }}"
+  loop:
+    - "purge.json"
+    - "thing.json"
+    - "display.json"
+  loop_control:
+    loop_var: acl_policy
+
+- name: Look up existing MQTT password
+  delegate_to: 127.0.0.1
+  ansible.mariadb.mariadb_query:
+    login_db: "{{ OracDBSchema }}"
+    login_host: "{{ OracDBServ }}"
+    login_password: "{{ OracDBPasswd }}"
+    login_port: "{{ OracDBPort }}"
+    login_user: "{{ OracDBUser }}"
+    query:
+      - SELECT COALESCE(CAST(AES_DECRYPT(FROM_BASE64(`shadow`), "{{ mqtt_shadow_key }}") AS CHAR), `shadow`) AS shadow FROM mqtt_user WHERE `username` = "{{ clientid }}" LIMIT 1
+  register: mqtt_password_lookup
+  when: passwd is not defined or passwd | length == 0
+  no_log: true
+
+- name: Use supplied or stored MQTT password
+  ansible.builtin.set_fact:
+    mqtt_passwd: "{{ passwd | default(mqtt_password_lookup.query_result[0][0].shadow | default('', true), true) }}"
+  no_log: true
+
+- name: Display MQTT Password as debug
+  debug:
+    msg: "MQTT Password for {{ inventory_hostname }} is {{ mqtt_passwd }}"
+  no_log: true
+
+- name: Copy hardware provisioning script
+  ansible.builtin.copy:
+    src: provision.py
+    dest: "/tmp/provision.py"
+    mode: "0750"
+  delegate_to: "{{ ProvisioningServer }}"
+
+- name: Provision hardware
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -u
+      - "/tmp/provision.py"
+      - "{{ WIFI_SSID}}"
+      - "{{ WIFI_PASSWORD }}"
+      - "{{ clientid }}"
+      - "{{ mqtt_passwd }}"
+      - "{{ MQTTServ }}"
+      - "{{ MQTTPort | string }}"
+      - "{{ HTTPConn }}"
+  delegate_to: "{{ ProvisioningServer }}"
+  register: provision_result
+  no_log: false
+
+- name: Show provisioning script stdout
+  ansible.builtin.debug:
+    msg: "{{ provision_result.stdout }}"
+ 

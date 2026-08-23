@@ -14,7 +14,14 @@ req = {
     "req": "connect",
     "ssid": os.environ['WIFI_SSID'],
     "pwd": os.environ['WIFI_PASSWORD'],
-    "tz": 60
+    "tz": 60,
+    "mqttHost": "",
+    "mqttClient": "",
+    "mqttUser": "",
+    "mqttPwd": "",
+    "mqttPort": 0,
+    "httpConn": "",
+    "reboot": True
 }
 
 

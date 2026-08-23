@@ -36,5 +36,13 @@ Unit can be configured over USB Serial by sending a JSON string.  See *ex[/pyCon
 ## Server
 Server is still WIP current experiment is *exp/WebDSP/app.py*.
 
+## Topics Used
+Relative to topic <ORG> which can be set as a parameter. Defaults to drjonea
+
+- drjonea/display/cosmic/<clientid>	
+- drjonea/display/cosmic
+- drjonea/display
+- drjonea/sensor/cosmic/<clientid>
+
 
 

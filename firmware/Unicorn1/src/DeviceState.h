@@ -82,6 +82,8 @@ public:
 	void setTopicGroup(const char *s);
 	char * getTopicGroup();
 
+	void storeConfig();
+
 private:
 	static DeviceState* SELF ;
 	DeviceState();

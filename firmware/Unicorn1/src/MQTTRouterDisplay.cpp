@@ -23,7 +23,7 @@ MQTTRouterDisplay::MQTTRouterDisplay() {
 	else
 		printf("ERROR: MQTTRouterDisplay:: Malloc Failed\n");
 
-	s = DeviceState::singleton()->getTopicOrg();
+	s = DeviceState::singleton()->getTopicGroup();
 	l += strlen(s) + 1;
 	pGroupTopic = (char *)pvPortMalloc(l);
 	if (pGroupTopic){
