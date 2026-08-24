@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="panel" id="status" data-panel-id="LINK STATUS">
+    <h2>Uplink Status</h2>
+    <div class="status-grid">
+      <div class="status-cell">
+        <span class="status-label">SSE Uplink</span>
+        <span class="status-value" id="sse-status">connecting...</span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">MQTT Topic</span>
+        <span class="status-value" id="last-topic">{{ message.topic or 'None' }}</span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Layout</span>
+        <span class="status-value" id="last-layout">{{ message.layout or 'None' }}</span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Payload</span>
+        <span class="status-value" id="last-payload">{{ message.payload or 'None' }}</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="widgets" data-panel-id="ACTIVE WIDGETS">
+    <h2>Active Widgets</h2>
+    <table class="widgets">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Data</th>
+        </tr>
+      </thead>
+      <tbody id="widget-body">
+        {% if message.widgets %}
+          {% for widget in message.widgets %}
+          <tr>
+            <td>{{ widget.type }}</td>
+            <td>{{ widget.data }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+        <tr>
+          <td colspan="2">No widgets</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="tiles" data-panel-id="TILE MONITOR">
+    <h2>Embedded Tile Monitor</h2>
+    <div class="tile-grid">
+      <div class="tile-card">
+        <img src="{{ url_for('images.weather_png') }}" alt="weather tile" />
+        <span>WEATHER</span>
+      </div>
+      <div class="tile-card">
+        <img src="{{ url_for('images.forecast_png') }}" alt="forecast tile" />
+        <span>FORECAST</span>
+      </div>
+      <div class="tile-card">
+        <img src="{{ url_for('images.solar_png') }}" alt="solar tile" />
+        <span>SOLAR</span>
+      </div>
+      <div class="tile-card">
+        <img src="{{ url_for('images.cal_png') }}" alt="calendar tile" />
+        <span>CALENDAR</span>
+      </div>
+      <div class="tile-card">
+        <img src="{{ url_for('static', filename='img/home.png') }}" alt="home tile" />
+        <span>HOME</span>
+      </div>
+      <div class="tile-card">
+        <img src="{{ url_for('images.pride_png') }}" alt="pride tile" />
+        <span>PRIDE</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="commands" data-panel-id="QUICK COMMANDS">
+    <h2>Quick Commands</h2>
+    <div class="preset-grid">
+      {% for preset in presets %}
+      <form action="{{ url_for('api.publish') }}" method="post" class="preset-form">
+        <input type="hidden" name="topic" value="{{ preset.topic }}" />
+        <input type="hidden" name="payload" value="{{ preset_payload_json(preset) }}" />
+        <button type="submit" class="command preset-btn">{{ preset.label }}</button>
+      </form>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="panel" id="console" data-panel-id="COMMAND CONSOLE">
+    <h2>Command Console</h2>
+    <form action="{{ url_for('api.publish') }}" method="post">
+      <div class="field">
+        <label for="topic">Topic</label>
+        <input type="text" name="topic" id="topic" value="{{ topic }}" />
+      </div>
+      <div class="field">
+        <label for="payload">Payload</label>
+        <textarea name="payload" id="payload" rows="4"></textarea>
+      </div>
+      <button type="submit" class="command">Transmit</button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    window.DECK_CONFIG = {
+      latestUrl: "{{ url_for('api.latest') }}",
+      eventsUrl: "{{ url_for('api.events') }}"
+    };
+  </script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}

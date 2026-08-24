@@ -1,0 +1,288 @@
+/* Sci-fi "command deck" theme, inspired by galactic-empire holo displays.
+   Uses open-license Orbitron/Share Tech Mono fonts (not copyrighted logo fonts). */
+
+:root {
+  --space-black: #05060a;
+  --panel: #0d101a;
+  --panel-raised: #141a29;
+  --panel-border: #253453;
+  --holo-blue: #4fd8ff;
+  --holo-blue-dim: #1e5b73;
+  --imperial-gold: #ffc94d;
+  --alert-red: #ff4d4d;
+  --ok-green: #5dffb0;
+  --text-primary: #dbe9ff;
+  --text-dim: #7f93b8;
+  --font-display: "Orbitron", "Trebuchet MS", sans-serif;
+  --font-mono: "Share Tech Mono", "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: radial-gradient(circle at 50% -10%, #101830 0%, var(--space-black) 55%);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+body {
+  padding: 1.5rem;
+  background-image:
+    linear-gradient(rgba(79, 216, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79, 216, 255, 0.03) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+a { color: var(--holo-blue); }
+
+.deck {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Header */
+.deck-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--holo-blue);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 2% 100%, 0 70%);
+}
+
+.deck-title {
+  font-family: var(--font-display);
+  letter-spacing: 0.18em;
+  font-size: 1.4rem;
+  color: var(--imperial-gold);
+  text-shadow: 0 0 10px rgba(255, 201, 77, 0.5);
+  margin: 0;
+}
+
+.deck-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+
+.deck-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.deck-nav a {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  color: var(--holo-blue);
+  border: 1px solid var(--holo-blue-dim);
+  padding: 0.4rem 0.8rem;
+  background: rgba(79, 216, 255, 0.05);
+  clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+}
+
+.deck-nav a:hover {
+  background: rgba(79, 216, 255, 0.18);
+}
+
+/* Panels */
+.panel {
+  background: linear-gradient(180deg, var(--panel-raised), var(--panel));
+  border: 1px solid var(--panel-border);
+  border-left: 3px solid var(--holo-blue);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.panel::before {
+  content: attr(data-panel-id);
+  position: absolute;
+  top: -0.6rem;
+  left: 1rem;
+  background: var(--space-black);
+  padding: 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--text-dim);
+}
+
+.panel h2 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.12em;
+  color: var(--imperial-gold);
+  margin: 0 0 0.75rem 0;
+}
+
+/* Status grid */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.status-cell {
+  border: 1px solid var(--panel-border);
+  background: rgba(79, 216, 255, 0.04);
+  padding: 0.6rem 0.75rem;
+}
+
+.status-label {
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.status-value {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.status-value.ok { color: var(--ok-green); }
+.status-value.warn { color: var(--alert-red); }
+
+/* Widget table */
+table.widgets {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+table.widgets th {
+  text-align: left;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--panel-border);
+  padding: 0.4rem 0.5rem;
+}
+
+table.widgets td {
+  border-bottom: 1px solid rgba(37, 52, 83, 0.6);
+  padding: 0.4rem 0.5rem;
+  color: var(--text-primary);
+}
+
+/* Forms */
+.field {
+  margin-top: 0.75rem;
+}
+
+.field label {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  background: var(--space-black);
+  border: 1px solid var(--panel-border);
+  color: var(--holo-blue);
+  font-family: var(--font-mono);
+  padding: 0.5rem;
+}
+
+.field input:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--holo-blue);
+  box-shadow: 0 0 6px rgba(79, 216, 255, 0.5);
+}
+
+button.command {
+  margin-top: 1rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  color: var(--space-black);
+  background: var(--imperial-gold);
+  border: none;
+  padding: 0.65rem 1.25rem;
+  cursor: pointer;
+  clip-path: polygon(5% 0, 100% 0, 95% 100%, 0 100%);
+}
+
+button.command:hover {
+  background: #ffd873;
+}
+
+/* Quick command presets */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.preset-form {
+  margin: 0;
+}
+
+button.preset-btn {
+  width: 100%;
+  margin-top: 0;
+  background: transparent;
+  color: var(--holo-blue);
+  border: 1px solid var(--holo-blue-dim);
+  clip-path: polygon(8% 0, 100% 0, 100% 70%, 92% 100%, 0 100%, 0 30%);
+}
+
+button.preset-btn:hover {
+  background: rgba(79, 216, 255, 0.15);
+  color: var(--text-primary);
+}
+
+/* Tile monitor */
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.tile-card {
+  border: 1px solid var(--panel-border);
+  background: rgba(79, 216, 255, 0.03);
+  padding: 0.6rem;
+  text-align: center;
+}
+
+.tile-card img {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  border: 1px solid var(--holo-blue-dim);
+  background: #000;
+}
+
+.tile-card span {
+  display: block;
+  margin-top: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+
+/* Footer */
+.deck-footer {
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  margin-top: 2rem;
+}

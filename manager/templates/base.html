@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}Display Command Deck{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}" />
+  </head>
+  <body>
+    <div class="deck">
+      <header class="deck-header">
+        <div>
+          <p class="deck-title">DISPLAY COMMAND DECK</p>
+          <p class="deck-subtitle">HOME NETWORK &middot; SIGNAL RELAY {{ request.host }}</p>
+        </div>
+        <nav class="deck-nav">
+          <a href="#status">STATUS</a>
+          <a href="#widgets">WIDGETS</a>
+          <a href="#tiles">TILES</a>
+          <a href="#commands">COMMANDS</a>
+          <a href="#console">CONSOLE</a>
+        </nav>
+      </header>
+
+      {% block content %}{% endblock %}
+
+      <footer class="deck-footer">
+        &mdash; TRANSMISSION SECURE &mdash;
+      </footer>
+    </div>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
