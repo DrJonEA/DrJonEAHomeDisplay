@@ -174,9 +174,10 @@ void main_task(void *params){
 	printf("IP ADDRESS: %s\n", ipStr);
 
 	//SNTP Activate
+	WifiHelper::sntpAddServer("0.uk.pool.ntp.org");
 	WifiHelper::sntpAddServer("ntp.virginmedia.com");
 	WifiHelper::sntpAddServer("ntp2.npl.co.uk");
-	WifiHelper::sntpAddServer("0.uk.pool.ntp.org");
+
 	int tz = DeviceState::singleton()->getTimeZone();
 	int8_t hours = tz / 60;
 	int8_t min = tz % 60;
@@ -201,24 +202,28 @@ void main_task(void *params){
 	MQTTRouterDisplay mqttRouter;
 	MQTTAgent mqttAgent;
 
-
 	mqttAgent.credentials(mqttUser, mqttPwd, mqttClient);
 	mqttAgent.setRouter(&mqttRouter);
-
-
 
 	printf("Connecting to: %s(%d)\n", mqttTarget, mqttPort);
 	printf("Client id: %.4s...\n", mqttAgent.getId());
 	printf("User id: %.4s...\n", mqttUser);
 
-	printf("Client id: %s\n", mqttAgent.getId());
-	printf("User id: %s\n", mqttUser);
-	printf("Passwd: %s\n", mqttPwd);
+	//printf("Client id: %s\n", mqttAgent.getId());
+	//printf("User id: %s\n", mqttUser);
+	//printf("Passwd: %s\n", mqttPwd);
+
+	TwinTask twin;
+	twin.setStateObject(DeviceState::singleton());
+	twin.setMQTTInterface(&mqttAgent);
+	mqttRouter.init(&mqttAgent);
+	mqttRouter.setTwin(&twin);
 
 	mqttAgent.setObserver(DeviceState::singleton());
 	mqttAgent.mqttConnect(mqttTarget, mqttPort, true);
 	mqttAgent.start(tskIDLE_PRIORITY+2);
 	TileAgent::singleton()->setInterface(&mqttAgent);
+	twin.start(tskIDLE_PRIORITY + 1);
 
 
     while(true) {
@@ -264,7 +269,7 @@ void main_task(void *params){
 
 
 void lvgl_task(void* params){
-	watchdog_enable(1000, 1);
+	watchdog_enable(5000, 1);
 	lv_init();
 	lv_port_disp_init();
 	Widgets *widgets = Widgets::singleton();

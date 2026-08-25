@@ -10,10 +10,11 @@
 
 #include "pico/stdlib.h"
 #include "MQTTRouter.h"
+#include "MQTTRouterTwin.h"
 #include "DeviceState.h"
 
 
-class MQTTRouterDisplay : public MQTTRouter {
+class MQTTRouterDisplay : public MQTTRouterTwin {
 public:
 	MQTTRouterDisplay();
 	virtual ~MQTTRouterDisplay();

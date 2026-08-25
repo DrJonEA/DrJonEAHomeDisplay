@@ -6,9 +6,20 @@
  */
 
 #include "DeviceState.h"
+#include <string.h>
+#include "json-maker/json-maker.h"
+
+#define SEN_TEMP_SLOT 3
+#define SEN_HUMID_SLOT 4
+#define SENSOR_TEMPERATURE "sensorTemp"
+#define SENSOR_HUMIDITY "sensorHumid"
 
 DeviceState *DeviceState::SELF = NULL ;
-DeviceState::DeviceState() {
+DeviceState::DeviceState(): StateTemp() {
+	elements = 5;
+	jsonHelpers[SEN_TEMP_SLOT] = (StateFunc)&DeviceState::jsonSensorTemp;
+	jsonHelpers[SEN_HUMID_SLOT] = (StateFunc)&DeviceState::jsonSensorHumid;
+
 	setupDefaults();
 
 }
@@ -48,9 +59,11 @@ bool DeviceState::isWifiOnline(){
 
 void DeviceState::setTemperature(float c){
 	xTemperature = c;
+	setDirty(SEN_TEMP_SLOT);
 }
 void DeviceState::setHumidity(float p){
 	xHumidity = p;
+	setDirty(SEN_HUMID_SLOT);
 }
 float DeviceState::getTemperature(){
 	return xTemperature;
@@ -251,4 +264,20 @@ void DeviceState::storeConfig(){
 			printf("NVS Store Config Failed\n");
 		}
 	}
+}
+
+
+char* DeviceState::jsonSensorTemp(char *buf, unsigned int len){
+	char *p = buf;
+	size_t l = len;
+	p = json_double( p, SENSOR_TEMPERATURE, (double)getTemperature(), &l);
+	return p;
+}
+
+
+char* DeviceState::jsonSensorHumid(char *buf, unsigned int len){
+	char *p = buf;
+	size_t l = len;
+	p = json_double( p, SENSOR_HUMIDITY, (double)getHumidity(), &l);
+	return p;
 }

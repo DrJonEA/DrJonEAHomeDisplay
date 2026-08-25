@@ -12,6 +12,8 @@
 #include "MQTTAgentObserver.h"
 #include "NVSOnboard.h"
 
+#include "StateTemp.h"
+
 #define DEV_TS 							"TS"
 #define DEV_SSID 					"SSID"
 #define DEV_SSID_PWD 		"SSID_PWD"
@@ -25,7 +27,7 @@
 #define DEV_TOPIC_GROUP 	"GRP"
 
 
-class DeviceState : public MQTTAgentObserver{
+class DeviceState : public MQTTAgentObserver, public StateTemp{
 public:
 	static DeviceState * singleton();
 
@@ -83,6 +85,23 @@ public:
 	char * getTopicGroup();
 
 	void storeConfig();
+
+protected:
+	/***
+	 * get temperature in json format
+	 * @param buf
+	 * @param len
+	 * @return
+	 */
+	virtual char* jsonSensorTemp(char *buf, unsigned int len);
+
+	/***
+	 * get temperature in json format
+	 * @param buf
+	 * @param len
+	 * @return
+	 */
+	virtual char* jsonSensorHumid(char *buf, unsigned int len);
 
 private:
 	static DeviceState* SELF ;

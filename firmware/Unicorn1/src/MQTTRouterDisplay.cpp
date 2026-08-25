@@ -11,7 +11,7 @@
 #include "MQTTConfig.h"
 #include "TileAgent.h"
 
-MQTTRouterDisplay::MQTTRouterDisplay() {
+MQTTRouterDisplay::MQTTRouterDisplay(): MQTTRouterTwin() {
 	int l;
 	const char *s;
 
@@ -56,6 +56,7 @@ MQTTRouterDisplay::~MQTTRouterDisplay() {
 }
 
 void MQTTRouterDisplay::subscribe(MQTTInterface *interface){
+	MQTTRouterTwin::subscribe(interface);
 	if (pDisplayTopic)
 		interface->subToTopic(pDisplayTopic, 1);
 	if (pGroupTopic)
@@ -69,6 +70,7 @@ void MQTTRouterDisplay::route(const char *topic,
 		const void * payload,
 		size_t payloadLen,
 		MQTTInterface *interface){
+		MQTTRouterTwin::route(topic, topicLen, payload, payloadLen, interface);
 
 		printf("TOPIC: %s, Payload(%d) %.*s\n", topic, payloadLen, payloadLen, (const char *)payload);
 		TileAgent::singleton()->processRequest(payload, payloadLen);
