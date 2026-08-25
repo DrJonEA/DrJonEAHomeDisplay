@@ -15,9 +15,10 @@ HORIZON_Y = TILE_SIZE // 2
 ARC_HEIGHT = HORIZON_Y - 3
 DISK_RADIUS = 3
 SUN_COLOR = (255, 200, 60)
+TXT_COLOR = (255, 255, 255)
 MOON_LIT_COLOR = (225, 225, 235)
 MOON_DARK_COLOR = (35, 35, 55)
-SOLAR_FONT_SIZE = 8
+SOLAR_FONT_SIZE = 10
 # Illumination fraction and lit side (True = right, waxing) per Google's MoonPhase enum.
 MOON_PHASE_ILLUMINATION = {
     "NEW_MOON": (0.0, True),
@@ -228,11 +229,13 @@ def generate_solar_image(solar):
     now = datetime.now(reference_tz) if reference_tz else datetime.now()
 
     sun_fraction = _rise_set_fraction(sunrise, sunset, now)
+    print(f"Sun fraction: {sun_fraction}, now: {now}, sunrise: {sunrise}, sunset: {sunset}")
     if sun_fraction is not None:
         cx, cy = _arc_point(sun_fraction, direction=-1)
         _fill_disk(pixels, cx, cy, DISK_RADIUS, min_y=0, max_y=HORIZON_Y - 1, color_fn=lambda dx: SUN_COLOR)
 
     moon_fraction = _rise_set_fraction(moonrise, moonset, now)
+    print(f"Moon fraction: {moon_fraction}, now: {now}, moonrise: {moonrise}, moonset: {moonset}")
     if moon_fraction is not None:
         cx, cy = _arc_point(moon_fraction, direction=1)
         illum_fraction, waxing = MOON_PHASE_ILLUMINATION.get(solar.get("moonPhase"), (1.0, True))
@@ -247,14 +250,15 @@ def generate_solar_image(solar):
         _fill_disk(pixels, cx, cy, DISK_RADIUS, min_y=HORIZON_Y, max_y=TILE_SIZE - 1, color_fn=moon_color)
 
     # Drawn last (on top of the disks) so the times stay legible even if the sun disk is nearby.
+    # Stacked (not side-by-side) since each "HH:MM" label is wider than half the tile at this
+    # font size, and kept within the top half so they never bleed into the moon's rows.
     draw = ImageDraw.Draw(img)
     font = ImageFont.load_default(size=SOLAR_FONT_SIZE)
     sunrise_label = solar.get("sunrise_hhmm")
     sunset_label = solar.get("sunset_hhmm")
     if sunrise_label:
-        draw.text((5, 8), sunrise_label, font=font, fill=SUN_COLOR)
+        draw.text((2, 5), sunrise_label, font=font, fill=TXT_COLOR)
     if sunset_label:
-        text_width = draw.textlength(sunset_label, font=font)
-        draw.text((5, 16), sunset_label, font=font, fill=SUN_COLOR)
+        draw.text((2, 14), sunset_label, font=font, fill=TXT_COLOR)
 
     return img

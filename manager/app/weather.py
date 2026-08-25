@@ -86,6 +86,7 @@ def fetch_forecast(api_key, lat, lng, zone_name):
     moonrise = moonrise.astimezone(local_zone) if moonrise else None
     moonset = moonset.astimezone(local_zone) if moonset else None
 
+    #print(f"Sunrise: {sunrise}, Sunset: {sunset}, Moonrise: {moonrise}, Moonset: {moonset}" )
     forecast = {
         "temperature": day["maxTemperature"]["degrees"],
         "tempMin": day["minTemperature"]["degrees"],
