@@ -62,7 +62,7 @@ def generate_calendar_image():
 
     draw.text((2, 2), dow_abbr, font=font_small, fill=(200, 200, 255))
     draw.text((16, 2), "%02d" % day, font=font_large, fill=(255, 255, 255))
-    draw.text((2, 14), month_abbr, font=font_large, fill=(255, 255, 50))
+    draw.text((2, 12), month_abbr, font=font_large, fill=(255, 255, 50))
 
     return img
 
