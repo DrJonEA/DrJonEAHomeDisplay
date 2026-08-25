@@ -378,12 +378,15 @@ void TileAgent::changeTimezone(int tz){
 		int8_t min = tz % 60;
 		WifiHelper::sntpSetTimezone(hours, min);
 
-		struct timespec ts;
-		aon_timer_get_time (&ts);
-		ts.tv_sec -= oldTZ * 60;
-		ts.tv_sec += tz * 60;
-		aon_timer_set_time (&ts);
+		if(aon_timer_is_running()){
+			struct timespec ts;
+			aon_timer_get_time (&ts);
+			ts.tv_sec -= oldTZ * 60;
+			ts.tv_sec += tz * 60;
+			aon_timer_set_time (&ts);
+		}
 
 		DeviceState::singleton()->setTimeZone(tz);
+		DeviceState::singleton()->storeConfig();
 	}
 }
