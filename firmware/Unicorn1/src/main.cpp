@@ -69,6 +69,8 @@ extern "C"{
 
 #define TASK_PRIORITY			( tskIDLE_PRIORITY + 1UL )
 
+#define DISABLE_WATCHDOG
+
 
 //Global Variables
 LIB_AHTXX *pAht10 = NULL;
@@ -269,7 +271,9 @@ void main_task(void *params){
 
 
 void lvgl_task(void* params){
+#ifndef DISABLE_WATCHDOG
 	watchdog_enable(5000, 1);
+#endif
 	lv_init();
 	lv_port_disp_init();
 	Widgets *widgets = Widgets::singleton();
@@ -280,7 +284,9 @@ void lvgl_task(void* params){
 	for(;;){
 	  for (int i=0; i < 100; i++){
 		  lv_timer_handler();
+#ifndef DISABLE_WATCHDOG
 		  watchdog_update();
+#endif
 		 vTaskDelay(1);
 	  }
 	  //printf("Tick\n");

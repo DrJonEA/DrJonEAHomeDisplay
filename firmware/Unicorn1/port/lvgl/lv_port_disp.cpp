@@ -67,7 +67,9 @@ void lv_port_disp_init(void){
 	cosmic_unicorn.init();
 	cosmic_unicorn.set_brightness(0.5);
 
+	lv_obj_enable_style_refresh(false);
 	display1 = lv_display_create(MY_DISP_HOR_RES, MY_DISP_VER_RES);
+	lv_obj_enable_style_refresh(true);
 
 	/* Set display buffer for display `display1`. */
 	size_t bufSize = MY_DISP_HOR_RES * MY_DISP_VER_RES / 10 * BYTES_PER_PIXEL;
