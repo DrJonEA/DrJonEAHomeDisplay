@@ -69,7 +69,7 @@ extern "C"{
 
 #define TASK_PRIORITY			( tskIDLE_PRIORITY + 1UL )
 
-#define DISABLE_WATCHDOG
+//#define DISABLE_WATCHDOG
 
 
 //Global Variables
