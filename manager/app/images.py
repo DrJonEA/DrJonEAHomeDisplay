@@ -5,7 +5,7 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 
 TILE_SIZE = 32
-BADGE_SIZE = 6
+BADGE_SIZE = 4
 # Corner badge colors so current-conditions and forecast tiles are visually distinguishable at a glance.
 CURRENT_BADGE_COLOR = (79, 216, 255)
 FORECAST_BADGE_COLOR = (255, 201, 77)
@@ -15,7 +15,7 @@ HORIZON_Y = TILE_SIZE // 2
 ARC_HEIGHT = HORIZON_Y - 3
 DISK_RADIUS = 3
 SUN_COLOR = (255, 200, 60)
-TXT_COLOR = (255, 255, 255)
+TXT_COLOR = (255, 200, 200)
 MOON_LIT_COLOR = (225, 225, 235)
 MOON_DARK_COLOR = (35, 35, 55)
 SOLAR_FONT_SIZE = 10
@@ -209,10 +209,10 @@ def _fill_disk(pixels, cx, cy, radius, min_y, max_y, color_fn):
             x, y = cx + dx, cy + dy
             if not (0 <= x < TILE_SIZE and min_y <= y <= max_y):
                 continue
-            pixels[x, y] = color_fn(dx)
+            pixels[x, y] = (color_fn(dx))
 
 
-def generate_solar_image(solar):
+def generate_solar_image(solar, now=None):
     """Generate a 32x32 tile: today's sun path (top half) and moon path (bottom half).
 
     Positions come from an already-fetched forecast dict (see weather.fetch_forecast) with
@@ -226,13 +226,28 @@ def generate_solar_image(solar):
     moonrise, moonset = solar.get("moonrise"), solar.get("moonset")
 
     reference_tz = next((t.tzinfo for t in (sunrise, sunset, moonrise, moonset) if t is not None), None)
-    now = datetime.now(reference_tz) if reference_tz else datetime.now()
+    if now is None:
+        now = datetime.now(reference_tz) if reference_tz else datetime.now()
 
     sun_fraction = _rise_set_fraction(sunrise, sunset, now)
     print(f"Sun fraction: {sun_fraction}, now: {now}, sunrise: {sunrise}, sunset: {sunset}")
     if sun_fraction is not None:
         cx, cy = _arc_point(sun_fraction, direction=-1)
         _fill_disk(pixels, cx, cy, DISK_RADIUS, min_y=0, max_y=HORIZON_Y - 1, color_fn=lambda dx: SUN_COLOR)
+    else:
+        # Nighttime star effect
+        pixels[5,  1] = (0xff, 0xff, 0xff)
+        pixels[12, 1] = (0xff, 0xff, 0xff)
+        pixels[15, 1] = (0xff, 0xff, 0xff)
+        pixels[27, 1] = (0xff, 0xff, 0xff)
+        pixels[2, 2] = (0xff, 0xff, 0xff)
+        pixels[20, 2] = (0xff, 0xff, 0xff)
+        pixels[25, 2] = (0xff, 0xff, 0xff)
+        pixels[30, 2] = (0xff, 0xff, 0xff)
+        pixels[6, 3] = (0xff, 0xff, 0xff)
+        pixels[17, 3] = (0xff, 0xff, 0xff)
+        pixels[22, 3] = (0xff, 0xff, 0xff)
+        pixels[31, 3] = (0xff, 0xff, 0xff)
 
     moon_fraction = _rise_set_fraction(moonrise, moonset, now)
     print(f"Moon fraction: {moon_fraction}, now: {now}, moonrise: {moonrise}, moonset: {moonset}")

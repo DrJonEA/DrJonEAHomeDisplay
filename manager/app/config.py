@@ -8,7 +8,7 @@ class Config:
     MQTT_PASSWD = os.environ.get("MQTT_PASSWD")
     MQTT_HOST = os.environ.get("MQTT_HOST")
     MQTT_PORT = int(os.environ.get("MQTT_PORT", "1883"))
-    MQTT_TOPIC = "home/display"
+    MQTT_TOPIC = "drjonea/display"
     WEATHER_API_KEY = os.environ.get("SMARTCLOCKGOOGLE")
     # Default location used for generated weather tiles (Brighton, UK)
     WEATHER_LAT = float(os.environ.get("WEATHER_LAT", "50.8"))
