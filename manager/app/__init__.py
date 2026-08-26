@@ -14,9 +14,16 @@ from .timezone_service import publish_utc_offset
 from .weather import fetch_forecast, fetch_weather
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WEATHER_REFRESH_SECONDS = 15 * 60
-FORECAST_REFRESH_SECONDS = 30 * 60
-TZ_CHECK_SECONDS = 1 * 60
+WEATHER_SCHEDULE_MINUTES = [0, 15, 30, 45]
+FORECAST_SCHEDULE_MINUTES = [0, 30]
+TZ_CHECK_SCHEDULE_MINUTES = list(range(60))
+
+# Independent schedules for re-announcing (re-publishing) a preset over MQTT, regardless of
+# whether the underlying cached data changed - e.g. so a display that missed/rebooted stays in sync.
+WEATHER_ANNOUNCE_MINUTES = list(range(5, 60, 5))
+FORECAST_ANNOUNCE_MINUTES = list(range(1, 60, 5))
+SOLAR_ANNOUNCE_MINUTES = [3, 18, 33, 48]
+CALENDAR_ANNOUNCE_MINUTES = [0]
 
 
 def create_app(config=None):
@@ -39,17 +46,26 @@ def create_app(config=None):
         return weather
 
     scheduler = DataScheduler()
-    scheduler.register("weather", fetch_and_announce_weather, WEATHER_REFRESH_SECONDS)
+    scheduler.register("weather", fetch_and_announce_weather, WEATHER_SCHEDULE_MINUTES)
     scheduler.register(
         "forecast",
         lambda: fetch_forecast(config.WEATHER_API_KEY, config.WEATHER_LAT, config.WEATHER_LNG, config.DISPLAY_TIMEZONE),
-        FORECAST_REFRESH_SECONDS,
+        FORECAST_SCHEDULE_MINUTES,
     )
     scheduler.register(
         "tz_offset",
         lambda: publish_utc_offset(mqtt_service, DISPLAY_TOPIC, config.DISPLAY_TIMEZONE),
-        TZ_CHECK_SECONDS,
+        TZ_CHECK_SCHEDULE_MINUTES,
     )
+
+    def announce(preset_key):
+        mqtt_service.publish(DISPLAY_TOPIC, preset_payload_json(get_preset(preset_key)))
+        return preset_key
+
+    scheduler.register("announce_weather", lambda: announce("weather"), WEATHER_ANNOUNCE_MINUTES)
+    scheduler.register("announce_forecast", lambda: announce("forecast"), FORECAST_ANNOUNCE_MINUTES)
+    scheduler.register("announce_solar", lambda: announce("solar"), SOLAR_ANNOUNCE_MINUTES)
+    scheduler.register("announce_calendar", lambda: announce("calendar"), CALENDAR_ANNOUNCE_MINUTES)
     # Future sources (sunrise/sunset, moonrise/moonset) register here the same way.
     app.scheduler = scheduler
 
