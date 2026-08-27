@@ -15,10 +15,12 @@ HORIZON_Y = TILE_SIZE // 2
 ARC_HEIGHT = HORIZON_Y - 3
 DISK_RADIUS = 3
 SUN_COLOR = (255, 200, 60)
-TXT_COLOR = (255, 200, 200)
+TXT_SUN_COLOR = (255, 200, 200)
+TXT_MOON_COLOR = (200, 200, 255)
 MOON_LIT_COLOR = (225, 225, 235)
 MOON_DARK_COLOR = (35, 35, 55)
 SOLAR_FONT_SIZE = 10
+LUNAR_FONT_SIZE = 8
 # Illumination fraction and lit side (True = right, waxing) per Google's MoonPhase enum.
 MOON_PHASE_ILLUMINATION = {
     "NEW_MOON": (0.0, True),
@@ -271,9 +273,13 @@ def generate_solar_image(solar, now=None):
     font = ImageFont.load_default(size=SOLAR_FONT_SIZE)
     sunrise_label = solar.get("sunrise_hhmm")
     sunset_label = solar.get("sunset_hhmm")
+    moonrise_label = solar.get("moonrise_hhmm")
     if sunrise_label:
-        draw.text((2, 5), sunrise_label, font=font, fill=TXT_COLOR)
+        draw.text((2, 5), sunrise_label, font=font, fill=TXT_SUN_COLOR)
     if sunset_label:
-        draw.text((2, 14), sunset_label, font=font, fill=TXT_COLOR)
+        draw.text((2, 14), sunset_label, font=font, fill=TXT_SUN_COLOR)
+    font = ImageFont.load_default(size=LUNAR_FONT_SIZE)
+    if moon_fraction is None and moonrise_label:
+        draw.text((5, 23), moonrise_label, font=font, fill=TXT_MOON_COLOR)
 
     return img

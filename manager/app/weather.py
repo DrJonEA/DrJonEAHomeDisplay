@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 from io import BytesIO
 from zoneinfo import ZoneInfo
+import json
 
 import requests
 from PIL import Image
@@ -64,17 +65,36 @@ def fetch_forecast(api_key, lat, lng, zone_name):
     """
     url = (
         "https://weather.googleapis.com/v1/forecast/days:lookup?"
-        + "key=%s&location.latitude=%f&location.longitude=%f&days=1" % (api_key, lat, lng)
+        + "key=%s&location.latitude=%f&location.longitude=%f&days=2" % (api_key, lat, lng)
     )
     resp = requests.get(url)
     j = resp.json()
+    #print(json.dumps(j, indent=4))
+
+    """Google forecast API rolls over at 7am not midnight. So fetching 2 days and picking current one"""
+    forecast_days = j["forecastDays"]
     day = j["forecastDays"][0]
+    now_utc = datetime.now(timezone.utc)
+    for d in forecast_days:
+        start = _parse_utc_timestamp(d["interval"]["startTime"])
+        end = _parse_utc_timestamp(day["interval"]["endTime"])
+        if start <= now_utc < end:
+            day = d
+            break
+
+    """ If we are within the nightime forecast, use that instead of the daytime forecast for the weather fields. """
     daytime = day["daytimeForecast"]
+    nighttime = day.get("nighttimeForecast", None)
+    if (nighttime is not None):
+        start = _parse_utc_timestamp(nighttime["interval"]["startTime"])
+        end = _parse_utc_timestamp(nighttime["interval"]["endTime"])
+        if start <= now_utc < end:
+            daytime = nighttime
+
 
     local_zone = ZoneInfo(zone_name)
     sun_events = day.get("sunEvents", {})
     moon_events = day.get("moonEvents", {})
-    now_utc = datetime.now(timezone.utc)
 
     sunrise = _parse_utc_timestamp(sun_events.get("sunriseTime"))
     sunset = _parse_utc_timestamp(sun_events.get("sunsetTime"))
