@@ -52,28 +52,34 @@ void Widgets::init() {
 }
 
 void Widgets::img(const void *ptr, size_t len, const char * msgStr, bool clock){
+	lv_lock();
 	xTileImage.img(ptr, len, msgStr);
 	xTileImage.showClock(clock);
 	lv_tileview_set_tile_by_index(
 			pTV,
 			1, 0,
 			LV_ANIM_ON);
+	lv_unlock();
 }
 
 void Widgets::setLayout(uint layout){
+	lv_lock();
 	lv_tileview_set_tile_by_index(
 				pTV,
 				layout, 0,
 				LV_ANIM_ON);
+	lv_unlock();
 }
 
 
 
 void Widgets::message(const char *s){
+	lv_lock();
 	xTileDefault.message(s);
 	lv_tileview_set_tile_by_index(
 				pTV,
 				0, 0,
 				LV_ANIM_ON);
+	lv_unlock();
 }
 

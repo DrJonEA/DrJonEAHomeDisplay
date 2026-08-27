@@ -191,6 +191,7 @@ void TileDefault::message(const char *s){
 	lv_obj_add_flag(pHumidity, LV_OBJ_FLAG_HIDDEN);
 
 	if (pTimer == NULL){
+		xMsgCount = 0;
 		pTimer = lv_timer_create(timerCB, 100,  this);
 	}
 }

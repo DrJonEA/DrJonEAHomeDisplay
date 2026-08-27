@@ -7,6 +7,7 @@
 
 #include "TileImage.h"
 #include <cstdio>
+#include <cstring>
 
 TileImage::TileImage() {
 	// TODO Auto-generated constructor stub
@@ -38,8 +39,6 @@ void TileImage::init(lv_obj_t *parent){
 	clockDisplay.init(parent);
 	clockDisplay.hide();
 
-	pTimer = lv_timer_create(timerCB, 100,  this);
-
 }
 
 void TileImage::img(const void *ptr, size_t len, const char * msgStr){
@@ -58,6 +57,12 @@ void TileImage::img(const void *ptr, size_t len, const char * msgStr){
 	} else {
 		printf("Msg set to %s\n", msgStr);
 		lv_label_set_text(pScrollTxt, msgStr);
+		if (strlen(msgStr) > 0){
+			if (pTimer == NULL){
+				xMsgCount = 0;
+				pTimer = lv_timer_create(timerCB, 100,  this);
+			}
+		}
 	}
 }
 
@@ -74,7 +79,13 @@ void TileImage::timerHandler(lv_timer_t * timer){
 	lv_obj_align(pScrollTxt, LV_ALIGN_BOTTOM_LEFT, xPos--, xScrollY);
 
 	if (xPos < (l * -1)){
-		xPos = 32;//l;
+		xPos = 32;
+
+		xMsgCount++;
+		if (xMsgCount > TILE_MSG_CYCLES){
+			lv_timer_delete(pTimer);
+			pTimer = NULL;
+		}
 	}
 }
 

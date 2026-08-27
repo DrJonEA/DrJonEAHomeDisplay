@@ -238,6 +238,7 @@ void main_task(void *params){
 		} else {
 			printf("No AHT10\n");
 		}
+    	DeviceState::singleton()->updateTemp();
 
         vTaskDelay(3000);
 

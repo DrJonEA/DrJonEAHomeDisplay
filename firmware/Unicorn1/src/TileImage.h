@@ -14,6 +14,10 @@
 #include "pico/stdlib.h"
 #include "ClockDisplay.h"
 
+#ifndef TILE_MSG_CYCLES
+#define TILE_MSG_CYCLES 3
+#endif
+
 class TileImage {
 public:
 	TileImage();
@@ -42,6 +46,7 @@ private:
 
 	int32_t xPos = 0;
 	int32_t xScrollY = 0;
+	int8_t xMsgCount = 0;
 
 	ClockDisplay clockDisplay;
 };
