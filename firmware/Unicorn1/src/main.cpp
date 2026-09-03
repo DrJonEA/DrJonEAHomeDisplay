@@ -66,6 +66,8 @@ extern "C"{
 #define PULSE_LED  	   0
 #define CONTROL_LED	  12
 
+#define OFFLINE_REBOOT (10 * 60 * 1000)
+
 
 #define TASK_PRIORITY			( tskIDLE_PRIORITY + 1UL )
 
@@ -134,6 +136,7 @@ void runTimeStats(   ){
 }
 
 
+bool doReboot = false;
 void main_task(void *params){
 
 	printf("Main task started\n");
@@ -228,13 +231,17 @@ void main_task(void *params){
 	twin.start(tskIDLE_PRIORITY + 1);
 
 
+	uint32_t online = to_ms_since_boot (get_absolute_time());
     while(true) {
 
     	runTimeStats();
 
     	if (pAht10 != NULL){
-    		 DeviceState::singleton()->setTemperature(pAht10->AHT10_readTemperature(false));
-    		 DeviceState::singleton()->setHumidity(pAht10->AHT10_readHumidity(false));
+    		float t = pAht10->AHT10_readTemperature(true);
+    		float h =  pAht10->AHT10_readHumidity(true);
+    		 DeviceState::singleton()->setTemperature(t);
+    		 DeviceState::singleton()->setHumidity(h);
+    		 printf("Update temp %.2fC, humid %.2f%%\n", t, h);
 		} else {
 			printf("No AHT10\n");
 		}
@@ -261,7 +268,16 @@ void main_task(void *params){
         	DeviceState::singleton()->WifiOnline();
         }
 
+        if (DeviceState::singleton()->isMQTTOnline()){
+        	online = to_ms_since_boot (get_absolute_time());
+        } else {
+        	uint32_t now = to_ms_since_boot (get_absolute_time());
+        	uint32_t msOffline = (now - online) ;
 
+        	if (msOffline > OFFLINE_REBOOT) {
+        		doReboot = true;
+        	}
+        }
 
     }
 
@@ -286,7 +302,8 @@ void lvgl_task(void* params){
 	  for (int i=0; i < 100; i++){
 		  lv_timer_handler();
 #ifndef DISABLE_WATCHDOG
-		  watchdog_update();
+		  if (!doReboot)
+			  watchdog_update();
 #endif
 		 vTaskDelay(1);
 	  }
