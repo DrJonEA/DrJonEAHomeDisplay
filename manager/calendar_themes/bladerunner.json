@@ -1,0 +1,15 @@
+{
+    "description": "Blade Runner and Blade Runner 2049 replicant incept dates and events.",
+    "priority": 40,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "08/01": {"title": "Incept date of Roy Batty (2016)", "image": "br_dove.png"},
+        "14/02": {"title": "Incept date of Pris Stratton (2016)", "image": "br_pris.png"},
+        "22/03": {"title": "Incept date of Sapper Morton (2019)", "image": "br_tree_flower.png"},
+        "10/04": {"title": "Incept date of Leon Kowalski (2017)", "image": "br_vk_eye.png"},
+        "05/05": {"title": "Incept date of Trixie (2020)", "image": "br_neon_city.png"},
+        "22/05": {"title": "The Great Blackout (2022)", "image": "br_blackout.png"},
+        "23/05": {"title": "Incept date of Rachael (2019)", "image": "br_unicorn.png"},
+        "10/06": {"title": "Birth of Ana Stelline; death of Rachael (2021)", "image": "br_snowflake.png"}
+    }
+}

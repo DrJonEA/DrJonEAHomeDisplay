@@ -23,6 +23,55 @@
     </div>
   </section>
 
+  <section class="panel" id="calendar-today" data-panel-id="CALENDAR THEME">
+    <h2>Today's Calendar Theme</h2>
+    <div class="calendar-today">
+      <div class="tile-card">
+        <img src="{{ url_for('images.cal_png') }}" alt="today's calendar tile" />
+        <span>{{ calendar.date.strftime('%a %d %b').upper() }}</span>
+      </div>
+      <div class="status-grid calendar-details">
+        <div class="status-cell">
+          <span class="status-label">Date</span>
+          <span class="status-value">{{ calendar.date.strftime('%A %d %B %Y') }}</span>
+        </div>
+        {% if calendar.error %}
+        <div class="status-cell">
+          <span class="status-label">Theme</span>
+          <span class="status-value warn">{{ calendar.error }}</span>
+        </div>
+        {% else %}
+        <div class="status-cell calendar-wide">
+          <span class="status-label">Theme</span>
+          <span class="status-value">{{ calendar.title }}</span>
+        </div>
+        <div class="status-cell calendar-wide">
+          <span class="status-label">Set</span>
+          <span class="status-value">
+            {{ calendar.collection or 'None' }}{% if calendar.collection_description %}: {{ calendar.collection_description }}{% endif %}
+          </span>
+        </div>
+        <div class="status-cell">
+          <span class="status-label">Rule</span>
+          <span class="status-value">{{ calendar.rule }}</span>
+        </div>
+        <div class="status-cell">
+          <span class="status-label">Image</span>
+          <span class="status-value">{{ calendar.image or 'plain' }}</span>
+        </div>
+        {% if calendar.others %}
+        <div class="status-cell calendar-wide">
+          <span class="status-label">Also today (not shown)</span>
+          <span class="status-value">
+            {% for title, rule in calendar.others %}{{ title }} <span class="calendar-rule">({{ rule }})</span>{% if not loop.last %}<br />{% endif %}{% endfor %}
+          </span>
+        </div>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="widgets" data-panel-id="ACTIVE WIDGETS">
     <h2>Active Widgets</h2>
     <table class="widgets">

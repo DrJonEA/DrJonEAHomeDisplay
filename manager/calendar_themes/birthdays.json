@@ -1,0 +1,9 @@
+{
+    "description": "Family birthdays.",
+    "priority": 100,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "13/01": {"title": "Kevin's Birthday", "image": "birthday_kevin.png"},
+        "24/07": {"title": "Jon's Birthday", "image": "birthday_jon.png"}
+    }
+}

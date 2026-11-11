@@ -23,8 +23,8 @@ coreHTTP. Plus some libraries for JSON and URL decoding.
 Right now I am not securing the data transport but that is a longer term plan. WolfSSL is in the build as a
 TLS library for when I add this capability.
 
-The server for this architecture is a work in progress. It will uses Python, Paho and Pillow. Experiments 
-towards this are included in the *exp* folder.
+The server for this architecture is the Display Manager in the *manager* folder, written in Python with
+Flask, Paho and Pillow (see [Server](#server-display-manager) below). Earlier experiments are in the *exp* folder.
 
 ## Firmware
 
@@ -33,8 +33,117 @@ Firmware build is targetted at the Cosmic Unicorn using a Pico W. Other firmware
 
 Unit can be configured over USB Serial by sending a JSON string.  See *ex[/pyConofig* as example.
 
-## Server
-Server is still WIP current experiment is *exp/WebDSP/app.py*.
+## Server: Display Manager
+The Display Manager (*manager/*) is a Flask app that generates the 32x32 tiles the displays download,
+publishes display commands and clock data over MQTT, and serves a web dashboard.
+
+### Running
+```
+cd manager
+pip install -r requirements.txt
+python main.py
+```
+It listens on port 5000. Configuration is by environment variable:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `MQTT_HOST`, `MQTT_PORT` | MQTT broker | port 1883 |
+| `MQTT_CLIENT`, `MQTT_USER`, `MQTT_PASSWD` | MQTT credentials | |
+| `SMARTCLOCKGOOGLE` | Google Weather API key | |
+| `WEATHER_LAT`, `WEATHER_LNG` | Location for weather and sun/moon times | Brighton, UK |
+| `DISPLAY_TIMEZONE` | IANA timezone for the clock offset and calendar date | `Europe/London` |
+| `CALENDAR_THEMES_DIR` | Calendar theme collections | `manager/calendar_themes` |
+| `CALENDAR_IMAGE_DIR` | Calendar theme images | `manager/static/img/calendar` |
+
+Run it detached from a terminal (for example as a systemd service, or with `nohup ... > manager.log 2>&1`).
+All runtime output goes through `logging`.
+
+### Tiles
+Each tile is available as a PNG for viewing and as BRG565 for the displays:
+
+| Tile | PNG | Display |
+|---|---|---|
+| Current weather | `/weather.png` | `/32x32/weather.brg565` |
+| Today's forecast | `/forecast.png` | `/32x32/forecast.brg565` |
+| Sun and moon paths | `/solar.png` | `/32x32/solar.brg565` |
+| Calendar | `/32x32/cal.png` | `/32x32/cal.brg565` |
+| Pride flag | `/32x32/pride.png` | `/32x32/pride.brg565` |
+
+The calendar tile accepts `?date=dd/mm/yyyy` to preview any day, e.g. `/32x32/cal.png?date=25/12/2026`.
+
+### Schedule
+A background scheduler refreshes data and re-announces display presets on fixed minutes past the hour:
+weather every 15 minutes, forecast every 30, and the calendar preset hourly. Every minute it publishes
+`{"tz": <UTC offset in minutes>, "blue": <bool>}` to `drjonea/display`, so the displays keep local time
+across daylight saving changes; `blue` is true during the night window (20:00 to 05:00 local).
+
+### Web dashboard
+`http://<server>:5000/` shows the uplink status, the active widgets, all tiles, and preset and console
+controls for publishing commands. The **Today's Calendar Theme** panel shows today's date and tile, the
+theme's description, the set it came from, the rule that chose it, and any other themes that also match
+today but were outranked.
+
+### Calendar themes
+The calendar tile shows the day of week, date and month over a themed 32x22 background image. The bottom
+10 rows are left clear, because the display draws its clock there. Themes are defined in JSON
+*collections*, one file per set, in *manager/calendar_themes/*. They are re-read on every request, so
+edits take effect without a restart.
+
+```json
+{
+    "description": "Family birthdays.",
+    "priority": 100,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "13/01": {"title": "Kevin's Birthday", "image": "birthday_kevin.png"}
+    }
+}
+```
+
+A collection can contain any of these rule kinds. When several rules match a day, the **rule kind** decides
+first, in this order:
+
+1. `dates`: one specific day, `"dd/mm/yyyy"`
+2. `events`: dates calculated each year. These are `easter`, `spring_equinox`, `summer_solstice`,
+   `autumn_equinox` and `winter_solstice`. Solstices and equinoxes are placed on the local date.
+3. `annual`: the same day every year, `"dd/mm"`
+4. `weekdays`: the day of the week, e.g. `"monday"`
+
+If two rules of the same kind match, the collection with the higher `priority` wins. So an entry in
+`overrides.json` (a specific date) always wins, and the weekday themes only show on otherwise free days.
+Each rule holds a theme: `title`, `image`, an optional text `outline` colour, and optional per-field
+`text` colour and position overrides. A collection can also define named `themes` that any collection
+reuses by name, and can be switched off with `"enabled": false`. The full format is documented in
+*manager/app/calendar_themes.py*.
+
+The current sets, highest priority first:
+
+| Collection | Priority | Contents |
+|---|---|---|
+| overrides | 1000 | One-off specific dates (empty) |
+| birthdays | 100 | Family birthdays |
+| seasonal | 80 | Easter, spring and autumn equinoxes, summer solstice |
+| advent | 70 | A theme for every day of December |
+| tolkien | 50 | The Hobbit and Lord of the Rings anniversaries |
+| doctorwho | 45 | Doctor Who episodes and milestones |
+| bladerunner, blakes7, scifi, terminator | 40 | Blade Runner, Blake's 7, Alien/Prometheus/Star Trek/Matrix, Terminator |
+| marvel | 30 | MCU dates and Marvel debut days |
+| midkemia | 20 | Raymond E. Feist's Midkemian calendar |
+| computing | 18 | History of computing (Unix and open technology) |
+| chemistry | 17 | History of chemistry |
+| dickens | 15 | Charles Dickens and the Victorian era |
+| weekdays | 10 | Norse and planetary day-of-week themes, and the default |
+
+### Calendar tools
+- **`python manager/tools/calendar_report.py [YEAR] [--all]`** lists every themed day of a year, with the
+  rule that chose it and anything it hides. It then checks for missing images, unknown theme names,
+  duplicate keys and unused images, and exits non-zero on a problem, so it can be run as a check before
+  deploying.
+- **`python manager/tools/make_calendar_images.py`** regenerates the theme images in
+  *manager/static/img/calendar/*. Each image is drawn from a 12x12 ASCII pixel-art sprite in the
+  `*_images.py` modules next to it, placed in the corner the text leaves free. To change an image, edit its
+  sprite and rerun. Images can also be drawn by hand: any 32x22 PNG works, and other sizes are scaled to
+  fit.
 
 ## Topics Used
 Relative to topic <ORG> which can be set as a parameter. Defaults to drjonea

@@ -1,0 +1,17 @@
+{
+    "description": "History of chemistry and elemental discoveries.",
+    "priority": 17,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "25/01": {"title": "Robert Boyle is born (1627)", "image": "ch_boyle.png"},
+        "08/02": {"title": "Dmitri Mendeleev is born (1834)", "image": "ch_mendeleev.png"},
+        "24/03": {"title": "Friedrich Wohler is born (1784)", "image": "ch_wohler.png"},
+        "20/05": {"title": "Marie Curie: radium and polonium", "image": "ch_curie.png"},
+        "30/06": {"title": "Buckminsterfullerene (C60) is discovered (1985)", "image": "ch_buckyball.png"},
+        "01/08": {"title": "Joseph Priestley isolates oxygen (1774)", "image": "ch_priestley.png"},
+        "26/08": {"title": "Antoine Lavoisier is born (1743)", "image": "ch_lavoisier.png"},
+        "06/09": {"title": "John Dalton is born (1766)", "image": "ch_dalton.png"},
+        "23/10": {"title": "Mole Day (6.02 x 10^23)", "image": "ch_mole_day.png"},
+        "10/12": {"title": "Alfred Nobel dies (1896)", "image": "ch_nobel.png"}
+    }
+}

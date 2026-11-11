@@ -1,0 +1,17 @@
+{
+    "description": "History of computing, with a Unix and open technology focus.",
+    "priority": 18,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "01/01": {"title": "Unix Epoch: time zero (1970)", "image": "cs_unix_epoch.png"},
+        "14/02": {"title": "ENIAC is dedicated (1946)", "image": "cs_eniac.png"},
+        "31/03": {"title": "UNIVAC I delivered to the Census Bureau (1951)", "image": "cs_univac.png"},
+        "07/04": {"title": "RFC 1 is published (1969)", "image": "cs_rfc1.png"},
+        "01/05": {"title": "The first BASIC program runs at Dartmouth (1964)", "image": "cs_basic.png"},
+        "23/06": {"title": "Alan Turing and Bletchley Park codebreaking", "image": "cs_bletchley.png"},
+        "25/08": {"title": "Linus Torvalds announces Linux (1991)", "image": "cs_linux.png"},
+        "27/09": {"title": "Richard Stallman announces GNU (1983)", "image": "cs_gnu.png"},
+        "03/11": {"title": "The Unix Programmer's Manual, 1st Edition (1971)", "image": "cs_unix_manual.png"},
+        "10/12": {"title": "Ada Lovelace is born (1815)", "image": "cs_ada.png"}
+    }
+}

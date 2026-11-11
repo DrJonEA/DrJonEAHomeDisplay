@@ -1,0 +1,15 @@
+{
+    "description": "Default day-of-week themes (Norse / planetary day names), and the fallback default.",
+    "priority": 10,
+    "defaults": {"outline": "#000000"},
+    "weekdays": {
+        "monday": {"title": "Monday: the Moon", "image": "moon.png"},
+        "tuesday": {"title": "Tuesday: Tyr", "image": "tyr.png"},
+        "wednesday": {"title": "Wednesday: Odin", "image": "odin.png"},
+        "thursday": {"title": "Thursday: Thor", "image": "thor.png"},
+        "friday": {"title": "Friday: Frigg", "image": "frigg.png"},
+        "saturday": {"title": "Saturday: Saturn", "image": "saturn.png"},
+        "sunday": {"title": "Sunday: the Sun", "image": "sun.png"}
+    },
+    "default": {"title": "Plain"}
+}

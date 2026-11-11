@@ -1,0 +1,18 @@
+{
+    "description": "Marvel: MCU in-universe dates and character/universe debut days.",
+    "priority": 30,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "01/01": {"title": "Golden Age Marvel Day (Human Torch & Sub-Mariner)", "image": "marvel_human_torch.png"},
+        "10/04": {"title": "Daredevil Day (Daredevil #1, 1964)", "image": "marvel_daredevil.png"},
+        "01/05": {"title": "Iron Man & Avengers Assembly Day", "image": "marvel_iron_man.png"},
+        "03/05": {"title": "Thanos executes the Snap (MCU, 2018)", "image": "marvel_snap.png"},
+        "29/05": {"title": "The Sokovia Accords are presented (MCU, 2014)", "image": "marvel_accords.png"},
+        "01/06": {"title": "Mutants & X-Men Day", "image": "marvel_xmen.png"},
+        "10/08": {"title": "Spider-Man Day (Amazing Fantasy #15)", "image": "marvel_spider.png"},
+        "31/08": {"title": "Marvel Comics Day (Marvel Comics #1, 1939)", "image": "marvel_comics_1.png"},
+        "17/10": {"title": "The Hulk's Snap restores half of all life (MCU, 2023)", "image": "marvel_hulk_snap.png"},
+        "01/11": {"title": "Fantastic Four Day (1961)", "image": "marvel_fantastic_four.png"},
+        "16/12": {"title": "The Winter Soldier kills Howard and Maria Stark (MCU, 1991)", "image": "marvel_winter_soldier.png"}
+    }
+}

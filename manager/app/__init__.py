@@ -71,6 +71,6 @@ def create_app(config=None):
 
     app.register_blueprint(create_pages_blueprint(mqtt_service))
     app.register_blueprint(create_api_blueprint(mqtt_service))
-    app.register_blueprint(create_images_blueprint(scheduler))
+    app.register_blueprint(create_images_blueprint(scheduler, config))
 
     return app

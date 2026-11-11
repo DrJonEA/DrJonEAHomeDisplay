@@ -286,3 +286,26 @@ button.preset-btn:hover {
   letter-spacing: 0.1em;
   margin-top: 2rem;
 }
+
+/* Today's calendar theme panel */
+.calendar-today {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.calendar-today .tile-card img {
+  width: 128px;
+  height: 128px;
+}
+.calendar-details {
+  flex: 1;
+  min-width: 240px;
+}
+.calendar-wide {
+  grid-column: 1 / -1;
+}
+.calendar-rule {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}

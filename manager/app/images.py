@@ -1,10 +1,13 @@
 """32x32 tile generation for embedded (Cosmic Unicorn) displays, plus BRG565 conversion."""
+import logging
 import math
 from datetime import datetime
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 TILE_SIZE = 32
+# Calendar tile: devices overlay their clock on the bottom 10 rows, leaving the top 22 for us.
+CALENDAR_HEIGHT = 22
 BADGE_SIZE = 4
 # Corner badge colors so current-conditions and forecast tiles are visually distinguishable at a glance.
 CURRENT_BADGE_COLOR = (79, 216, 255)
@@ -49,27 +52,52 @@ def convert_to_brg565(img):
     return bytes(raw), width, height
 
 
-def generate_calendar_image():
-    """Generate a 32x32 calendar tile showing day of week, day, and month from system clock."""
-    now = datetime.now()
-    day = now.day
-    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    month_abbr = month_names[now.month - 1]
-    dow_abbr = now.strftime("%a")[:2]
+def _load_calendar_background(path):
+    """Load a theme background, scaled/cropped (nearest-neighbour, to keep pixel art crisp) to 32x22."""
+    size = (TILE_SIZE, CALENDAR_HEIGHT)
+    try:
+        with Image.open(path) as src:
+            bg = src.convert("RGB")
+    except OSError as exc:
+        logging.warning("Calendar background %s unreadable: %s", path, exc)
+        return None
+    if bg.size != size:
+        logging.debug("Calendar background %s is %s, fitting to %s", path, bg.size, size)
+        bg = ImageOps.fit(bg, size, method=Image.NEAREST)
+    return bg
 
+
+def generate_calendar_image(day, theme):
+    """Generate a 32x32 calendar tile for date `day`: themed background plus day-of-week, date and month.
+
+    Only the top CALENDAR_HEIGHT rows are drawn on; the device overlays its clock on the rest.
+    `theme` is a calendar_themes.CalendarTheme.
+    """
     img = Image.new("RGB", (TILE_SIZE, TILE_SIZE), color=(0, 0, 0))
+    if theme.image_path:
+        bg = _load_calendar_background(theme.image_path)
+        if bg is not None:
+            img.paste(bg, (0, 0))
+
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    labels = {
+        "dow": day.strftime("%a")[:2],
+        "day": "%02d" % day.day,
+        "month": month_names[day.month - 1],
+    }
+
     draw = ImageDraw.Draw(img)
-    font_small = ImageFont.load_default()
-    font_large = ImageFont.load_default()
+    font = ImageFont.load_default()
+    stroke = {"stroke_width": 1, "stroke_fill": theme.outline} if theme.outline else {}
+    for field_name, style in theme.text.items():
+        draw.text(style["pos"], labels[field_name], font=font, fill=style["color"], **stroke)
 
-    draw.text((2, 2), dow_abbr, font=font_small, fill=(200, 200, 255))
-    draw.text((16, 2), "%02d" % day, font=font_large, fill=(255, 255, 255))
-    draw.text((2, 12), month_abbr, font=font_large, fill=(255, 255, 50))
-
+    # Keep the clock area clean even if text/outline strays below the calendar area.
+    draw.rectangle((0, CALENDAR_HEIGHT, TILE_SIZE - 1, TILE_SIZE - 1), fill=(0, 0, 0))
     return img
 
 
-def generate_weather_image(weather, badge_color=None):
+def generate_weather_image(weather, isForecast=False):
     """Generate a 32x32 weather forecast tile from an already-fetched weather dict (see weather.fetch_weather).
 
     badge_color, if given, is painted as a small top-right corner square (e.g. CURRENT_BADGE_COLOR
@@ -122,17 +150,22 @@ def generate_weather_image(weather, badge_color=None):
     draw = ImageDraw.Draw(img)
     font = ImageFont.load_default()
     draw.text((0, 0), "%.1fc" % temperature, font=font, fill=(255, 255, 255))
-    draw.text((0, 10), "%.1f%%" % weather["humidity"], font=font, fill=(255, 255, 255))
+    if not isForecast:
+        draw.text((0, 10), "%.1f%%" % weather["humidity"], font=font, fill=(255, 255, 255))
+    else:
+        draw.text((0, 10), "%.1fc" % weather["tempMin"], font=font, fill=(200, 200, 255))
 
     if weather["precProb"]:
         draw.text((0, 20), "%d%%" % int(weather["precProb"]), font=font, fill=(255, 255, 255))
     elif weather["windSpeed"] > 50:
         draw.text((0, 20), "%dkmh" % weather["windSpeed"], font=font, fill=(255, 255, 255))
 
-    if badge_color:
-        for x in range(TILE_SIZE - BADGE_SIZE, TILE_SIZE):
-            for y in range(BADGE_SIZE):
-                pixels[x, y] = badge_color
+    if isForecast:
+        pixels[31, 2] = FORECAST_BADGE_COLOR
+        pixels[30, 1] = FORECAST_BADGE_COLOR
+        pixels[30, 3] = FORECAST_BADGE_COLOR
+        pixels[29, 0] = FORECAST_BADGE_COLOR
+        pixels[29, 4] = FORECAST_BADGE_COLOR
 
     return img
 
@@ -232,7 +265,7 @@ def generate_solar_image(solar, now=None):
         now = datetime.now(reference_tz) if reference_tz else datetime.now()
 
     sun_fraction = _rise_set_fraction(sunrise, sunset, now)
-    print(f"Sun fraction: {sun_fraction}, now: {now}, sunrise: {sunrise}, sunset: {sunset}")
+    logging.debug("Sun fraction: %s, now: %s, sunrise: %s, sunset: %s", sun_fraction, now, sunrise, sunset)
     if sun_fraction is not None:
         cx, cy = _arc_point(sun_fraction, direction=-1)
         _fill_disk(pixels, cx, cy, DISK_RADIUS, min_y=0, max_y=HORIZON_Y - 1, color_fn=lambda dx: SUN_COLOR)
@@ -252,7 +285,7 @@ def generate_solar_image(solar, now=None):
         pixels[31, 3] = (0xff, 0xff, 0xff)
 
     moon_fraction = _rise_set_fraction(moonrise, moonset, now)
-    print(f"Moon fraction: {moon_fraction}, now: {now}, moonrise: {moonrise}, moonset: {moonset}")
+    logging.debug("Moon fraction: %s, now: %s, moonrise: %s, moonset: %s", moon_fraction, now, moonrise, moonset)
     if moon_fraction is not None:
         cx, cy = _arc_point(moon_fraction, direction=1)
         illum_fraction, waxing = MOON_PHASE_ILLUMINATION.get(solar.get("moonPhase"), (1.0, True))

@@ -1,0 +1,15 @@
+{
+    "description": "The Terminator films.",
+    "priority": 40,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "28/02": {"title": "John Connor is born (1985)", "image": "term_john.png"},
+        "12/05": {"title": "The T-800 and Kyle Reese arrive (1984)", "image": "term_skull.png"},
+        "13/05": {"title": "Reese rescues Sarah Connor at Tech Noir (1984)", "image": "term_tech_noir.png"},
+        "08/06": {"title": "The T-800 and T-1000 arrive (1995)", "image": "term_time_sphere.png"},
+        "11/07": {"title": "Judgment Day, Genisys timeline (2017)", "image": "term_judgment_day.png"},
+        "24/07": {"title": "Judgment Day, Rise of the Machines timeline (2004)", "image": "term_judgment_day.png"},
+        "04/08": {"title": "Skynet becomes self-aware (1997)", "image": "term_skynet.png"},
+        "29/08": {"title": "Judgment Day (1997)", "image": "term_judgment_day.png"}
+    }
+}

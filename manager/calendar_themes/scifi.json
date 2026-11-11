@@ -1,0 +1,12 @@
+{
+    "description": "Alien, Prometheus, Star Trek and The Matrix.",
+    "priority": 40,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "05/04": {"title": "First Contact Day (Star Trek, 2063)", "image": "st_phoenix.png"},
+        "03/06": {"title": "The Nostromo answers the LV-426 signal (Alien, 2122)", "image": "alien_egg.png"},
+        "27/07": {"title": "The Colonial Marines drop onto LV-426 (Aliens, 2179)", "image": "aliens_tracker.png"},
+        "11/06": {"title": "Neo wakes up (The Matrix, 1999)", "image": "matrix_rain.png"},
+        "21/12": {"title": "The Prometheus arrives at LV-223 (Prometheus, 2093)", "image": "prometheus_lv223.png"}
+    }
+}

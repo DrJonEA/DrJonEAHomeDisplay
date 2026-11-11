@@ -1,0 +1,18 @@
+{
+    "description": "Midkemian calendar (Raymond E. Feist's Riftwar world): festivals and month starts.",
+    "priority": 20,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "11/01": {"title": "Start of Agaeis (Late Winter / Long Freeze)", "image": "mk_agaeis.png"},
+        "20/03": {"title": "Start of Yamiev (Early Spring Thaw)", "image": "mk_yamiev.png"},
+        "09/04": {"title": "Start of Dzanin (Late Spring / Early Summer)", "image": "mk_dzanin.png"},
+        "21/06": {"title": "Banapis (Midsummer Festival & Universal Birthday)", "image": "mk_banapis.png"},
+        "22/06": {"title": "Start of Kimia (Midsummer & High Trade)", "image": "mk_kimia.png"},
+        "25/07": {"title": "Start of Rodec (Late Summer)", "image": "mk_rodec.png"},
+        "22/08": {"title": "Start of Staphron (Early Autumn)", "image": "mk_staphron.png"},
+        "09/09": {"title": "Start of Natinica (Mid-Autumn Harvest)", "image": "mk_natinica.png"},
+        "01/10": {"title": "Start of Wochem (The Great Autumn & Frost)", "image": "mk_wochem.png"},
+        "21/12": {"title": "Mid-Winter Day (Winter Solstice Festival)", "image": "mk_midwinter.png"},
+        "22/12": {"title": "Start of Nuna (Deep Winter)", "image": "mk_nuna.png"}
+    }
+}

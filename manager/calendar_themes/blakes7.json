@@ -1,0 +1,14 @@
+{
+    "description": "Blake's 7 (episode broadcast dates).",
+    "priority": 40,
+    "defaults": {"outline": "#000000"},
+    "annual": {
+        "02/01": {"title": "Blake is tried and sentenced (The Way Back)", "image": "b7_gavel.png"},
+        "09/01": {"title": "The prisoners seize the Liberator (Space Fall)", "image": "b7_liberator.png"},
+        "06/02": {"title": "Servalan and Travis hunt Blake (Seek-Locate-Destroy)", "image": "b7_travis.png"},
+        "27/03": {"title": "The crew acquires Orac (Orac)", "image": "b7_orac.png"},
+        "31/03": {"title": "The Liberator is destroyed (Terminal)", "image": "b7_liberator_lost.png"},
+        "03/04": {"title": "The Andromedan invasion (Star One)", "image": "b7_andromeda.png"},
+        "21/12": {"title": "The last stand on Gauda Prime (Blake)", "image": "b7_gauda_prime.png"}
+    }
+}

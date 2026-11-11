@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from zoneinfo import ZoneInfo
 import json
+import logging
 
 import requests
 from PIL import Image
@@ -56,6 +57,46 @@ def fetch_weather(api_key, lat, lng):
     weather["img"] = Image.open(BytesIO(icon_resp.content))
     return weather
 
+def get_current_moon_info(j, now_utc, local_zone):
+    rises = []  # list of (utc_datetime, moonphase_for_that_day)
+    sets = []   # list of utc_datetime
+
+    for lunar_day in j.get("forecastDays", []):
+        moon_events = lunar_day.get("moonEvents", {})
+        phase = moon_events.get("moonPhase")
+
+        for rt in moon_events.get("moonriseTimes", []):
+            dt = _parse_utc_timestamp(rt)
+            if dt:
+                rises.append((dt, phase))
+
+        for st in moon_events.get("moonsetTimes", []):
+            dt = _parse_utc_timestamp(st)
+            if dt:
+                sets.append(dt)
+
+    rises.sort(key=lambda r: r[0])
+    sets.sort()
+
+    last_rise = max((r for r in rises if r[0] <= now_utc), default=None, key=lambda r: r[0])
+    last_set = max((s for s in sets if s <= now_utc), default=None)
+
+    if last_rise and (last_set is None or last_rise[0] > last_set):
+        # Most recent event before "now" was a rise with no set since -> moon is up
+        moonrise, moonphase = last_rise
+        moonset = min((s for s in sets if s > moonrise), default=None)
+    else:
+        # Moon is down -> find the next rise in the future
+        future_rises = [r for r in rises if r[0] > now_utc]
+        if not future_rises:
+            return None, None, None
+        moonrise, moonphase = min(future_rises, key=lambda r: r[0])
+        moonset = min((s for s in sets if s > moonrise), default=None)
+
+    moonrise = moonrise.astimezone(local_zone) if moonrise else None
+    moonset = moonset.astimezone(local_zone) if moonset else None
+    return moonphase, moonrise, moonset
+
 
 def fetch_forecast(api_key, lat, lng, zone_name):
     """Query the current day's forecast (weather, sun/moon events) and return a dict.
@@ -75,10 +116,13 @@ def fetch_forecast(api_key, lat, lng, zone_name):
     forecast_days = j["forecastDays"]
     day = j["forecastDays"][0]
     now_utc = datetime.now(timezone.utc)
+    #print(f"For Now UTC: {now_utc.isoformat()}")
     for d in forecast_days:
         start = _parse_utc_timestamp(d["interval"]["startTime"])
         end = _parse_utc_timestamp(day["interval"]["endTime"])
-        if start <= now_utc < end:
+        #print(f"Checking forecast day: {start.isoformat()} to {end.isoformat()}")
+        if now_utc >= start and now_utc < end:
+            #print(f"Day selected: {start.isoformat()} to {end.isoformat()}")
             day = d
             break
 
@@ -93,13 +137,26 @@ def fetch_forecast(api_key, lat, lng, zone_name):
 
 
     local_zone = ZoneInfo(zone_name)
-    sun_events = day.get("sunEvents", {})
-    moon_events = day.get("moonEvents", {})
+    for solarDay in j["forecastDays"]:
+        sun_events = solarDay.get("sunEvents", {}) 
+        sunrise = _parse_utc_timestamp(sun_events.get("sunriseTime"))
+        sunset = _parse_utc_timestamp(sun_events.get("sunsetTime"))
+        sunrise = sunrise.astimezone(local_zone) if sunrise else None
+        sunset = sunset.astimezone(local_zone) if sunset else None
+        if sunrise and sunrise.date() == now_utc.date():
+            break
 
-    sunrise = _parse_utc_timestamp(sun_events.get("sunriseTime"))
-    sunset = _parse_utc_timestamp(sun_events.get("sunsetTime"))
-    moonrise = _select_moon_time(moon_events.get("moonriseTimes") or [], now_utc)
-    moonset = _select_moon_time(moon_events.get("moonsetTimes") or [], now_utc)
+ 
+    moonphase, moonrise, moonset = get_current_moon_info(j, now_utc, local_zone)
+    logging.info("Sunrise: %s, Sunset: %s, Moonrise: %s, Moonset: %s", sunrise, sunset, moonrise, moonset)
+
+    #sun_events = day.get("sunEvents", {})
+    #sunrise = _parse_utc_timestamp(sun_events.get("sunriseTime"))
+    #sunset = _parse_utc_timestamp(sun_events.get("sunsetTime"))
+
+    #moon_events = day.get("moonEvents", {})
+    #moonrise = _select_moon_time(moon_events.get("moonriseTimes") or [], now_utc)
+    #moonset = _select_moon_time(moon_events.get("moonsetTimes") or [], now_utc)
 
     sunrise = sunrise.astimezone(local_zone) if sunrise else None
     sunset = sunset.astimezone(local_zone) if sunset else None
@@ -125,7 +182,7 @@ def fetch_forecast(api_key, lat, lng, zone_name):
         "sunset_hhmm": sunset.strftime("%H:%M") if sunset else None,
         "moonrise_hhmm": moonrise.strftime("%H:%M") if moonrise else None,
         "moonset_hhmm": moonset.strftime("%H:%M") if moonset else None,
-        "moonPhase": moon_events.get("moonPhase"),
+        "moonPhase": moonphase,
         "precType": daytime["precipitation"]["probability"]["type"],
         "icon": daytime["weatherCondition"]["iconBaseUri"],
         "updated": int(datetime.now(timezone.utc).timestamp()),

@@ -1,0 +1,6 @@
+{
+    "description": "One-off themes for specific dates (dd/mm/yyyy). Specific dates beat every other kind of rule, so add an entry here to override anything for a single day.",
+    "priority": 1000,
+    "defaults": {"outline": "#000000"},
+    "dates": {}
+}

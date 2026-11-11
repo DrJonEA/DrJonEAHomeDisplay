@@ -1,0 +1,11 @@
+{
+    "description": "Moveable feasts and astronomical events, computed each year.",
+    "priority": 80,
+    "defaults": {"outline": "#000000"},
+    "events": {
+        "easter": {"title": "Easter", "image": "easter.png"},
+        "spring_equinox": {"title": "Spring Equinox", "image": "spring_equinox.png"},
+        "summer_solstice": {"title": "Summer Solstice", "image": "summer_solstice.png"},
+        "autumn_equinox": {"title": "Autumn Equinox", "image": "autumn_equinox.png"}
+    }
+}

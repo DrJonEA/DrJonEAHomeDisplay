@@ -1,14 +1,18 @@
 """Routes serving generated tiles for embedded (Cosmic Unicorn) displays."""
+import logging
 import os
+import traceback
+from datetime import datetime
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
-from flask import Blueprint, Response, current_app
+from flask import Blueprint, Response, current_app, request
 from PIL import Image
 
-from .. import images
+from .. import calendar_themes, images
 
 
-def create_images_blueprint(scheduler):
+def create_images_blueprint(scheduler, config):
     bp = Blueprint("images", __name__)
 
     @bp.route("/32x32/home")
@@ -29,7 +33,7 @@ def create_images_blueprint(scheduler):
         if weather is None:
             return Response(error or "Weather cache warming up", status=503)
         try:
-            return _png_response(images.generate_weather_image(weather, badge_color=images.CURRENT_BADGE_COLOR))
+            return _png_response(images.generate_weather_image(weather, isForecast=False))
         except Exception as exc:
             return Response(str(exc), status=500)
 
@@ -39,7 +43,7 @@ def create_images_blueprint(scheduler):
         if weather is None:
             return Response(error or "Weather cache warming up", status=503)
         try:
-            img = images.generate_weather_image(weather, badge_color=images.CURRENT_BADGE_COLOR)
+            img = images.generate_weather_image(weather, isForecast=False)
             raw, width, height = images.convert_to_brg565(img)
             return _brg565_response(raw, width, height)
         except Exception as exc:
@@ -51,8 +55,9 @@ def create_images_blueprint(scheduler):
         if forecast is None:
             return Response(error or "Forecast cache warming up", status=503)
         try:
-            return _png_response(images.generate_weather_image(forecast, badge_color=images.FORECAST_BADGE_COLOR))
+            return _png_response(images.generate_weather_image(forecast, isForecast=True))
         except Exception as exc:
+            traceback.print_exc()
             return Response(str(exc), status=500)
 
     @bp.route("/32x32/forecast.brg565")
@@ -61,7 +66,7 @@ def create_images_blueprint(scheduler):
         if forecast is None:
             return Response(error or "Forecast cache warming up", status=503)
         try:
-            img = images.generate_weather_image(forecast, badge_color=images.FORECAST_BADGE_COLOR)
+            img = images.generate_weather_image(forecast, isForecast=True)
             raw, width, height = images.convert_to_brg565(img)
             return _brg565_response(raw, width, height)
         except Exception as exc:
@@ -113,18 +118,38 @@ def create_images_blueprint(scheduler):
         except Exception as exc:
             return Response(str(exc), status=500)
 
+    def _calendar_image():
+        """Render today's calendar tile, or the date given as ?date=dd/mm/yyyy (for previewing themes)."""
+        requested = request.args.get("date")
+        if requested:
+            day = datetime.strptime(requested, "%d/%m/%Y").date()
+        else:
+            day = datetime.now(ZoneInfo(config.DISPLAY_TIMEZONE)).date()
+        theme = calendar_themes.resolve_theme(
+            calendar_themes.load_collections(config.CALENDAR_THEMES_DIR),
+            day,
+            config.CALENDAR_IMAGE_DIR,
+            config.DISPLAY_TIMEZONE,
+        )
+        logging.debug("Calendar %s: theme '%s' (%s)", day, theme.name, theme.rule)
+        return images.generate_calendar_image(day, theme)
+
     @bp.route("/32x32/cal.brg565")
     def cal_brg565():
         try:
-            raw, width, height = images.convert_to_brg565(images.generate_calendar_image())
+            raw, width, height = images.convert_to_brg565(_calendar_image())
             return _brg565_response(raw, width, height)
+        except ValueError as exc:
+            return Response(str(exc), status=400)
         except Exception as exc:
             return Response(str(exc), status=500)
 
     @bp.route("/32x32/cal.png")
     def cal_png():
         try:
-            return _png_response(images.generate_calendar_image())
+            return _png_response(_calendar_image())
+        except ValueError as exc:
+            return Response(str(exc), status=400)
         except Exception as exc:
             return Response(str(exc), status=500)
 

@@ -1,6 +1,8 @@
 """Environment-derived configuration for the display manager."""
 import os
 
+_MANAGER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 class Config:
     MQTT_CLIENT_ID = os.environ.get("MQTT_CLIENT")
@@ -15,6 +17,13 @@ class Config:
     WEATHER_LNG = float(os.environ.get("WEATHER_LNG", "-0.167"))
     # IANA zone used for the published TZ offset; independent of the host/container OS timezone
     DISPLAY_TIMEZONE = os.environ.get("DISPLAY_TIMEZONE", "Europe/London")
+    # Calendar tile themes (see app/calendar_themes.py) and the directory holding their images
+    CALENDAR_THEMES_DIR = os.environ.get(
+        "CALENDAR_THEMES_DIR", os.path.join(_MANAGER_DIR, "calendar_themes")
+    )
+    CALENDAR_IMAGE_DIR = os.environ.get(
+        "CALENDAR_IMAGE_DIR", os.path.join(_MANAGER_DIR, "static", "img", "calendar")
+    )
 
 
 def masked(value, keep=4):

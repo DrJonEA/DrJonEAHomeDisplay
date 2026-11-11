@@ -1,9 +1,10 @@
 """Computes and publishes the configured display timezone's UTC offset, for display clock sync."""
 import json
+import logging
 from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
-# Night window during which the "blue" tag is sent as false (e.g. for a night/red-shift display mode).
+# Night window during which the published "blue" tag is sent as true (i.e. night/blue display mode).
 NIGHT_START = time(20, 0)
 NIGHT_END = time(5, 0)
 
@@ -16,7 +17,7 @@ def utc_offset_minutes(zone_name):
     """
     offset = datetime.now(ZoneInfo(zone_name)).utcoffset()
     offmin = int(offset.total_seconds() // 60)
-    print(f"Current UTC offset: {offmin} minutes")
+    logging.info("Current UTC offset: %d minutes", offmin)
     return offmin
 
 
@@ -27,7 +28,10 @@ def _is_blue(local_time):
 
 
 def publish_utc_offset(mqtt_service, topic, zone_name):
-    """Compute the current UTC offset and day/night "blue" flag, publish as {"tz": .., "blue": ..}, and return the offset for caching."""
+    """Compute the current UTC offset and "blue" flag, publish as {"tz": .., "blue": ..}, and return the offset for caching.
+
+    "blue" is True during the night window (20:00-05:00 local), False during the day.
+    """
     offset_minutes = utc_offset_minutes(zone_name)
     blue = not _is_blue(datetime.now(ZoneInfo(zone_name)).time())
 
