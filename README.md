@@ -1,4 +1,7 @@
 # DrJonEAHomeDisplay
+
+![A Cosmic Unicorn showing the weather tile: new display tiles, no new firmware](images/banner.jpg)
+
 A display control architecture for my home. Initially using the 
 [PIMORONI Cosmic Unicorn V1](https://shop.pimoroni.com/products/space-unicorns?variant=40842626596947).
 Each device is a IoT devices publishing temperature and humidity (from AHT10) over MQTT. 
@@ -7,6 +10,14 @@ Then responding to commands over MQTT to provide details of what to share.
 To allow a Cosmic Unicorn to adapt to different data to visualise I went with a simple LVGL two tile 
 architecture. A local tile that just displays local data: Clock, Temperature, Humidity and Status. Plus a 
 Image tile that pulls an image of HTTP to display. Overlays of clock and scroll text are also supported.
+
+![The local tile, weather, sun and moon, and calendar tiles on a Cosmic Unicorn](images/tiles-in-action.jpg)
+
+![Local tile and image tile](images/two-tiles.jpg)
+
+MQTT carries sensor data out and announcements in. When a new tile is ready, the display pulls the image over HTTP.
+
+![MQTT for sensor data and announcements, HTTP to pull images](images/mqtt-http.jpg)
 
 ## Cloning and Building
 This is a Pico SDK based project in C++. Where libraries are included as submodules. When cloning please
@@ -26,16 +37,25 @@ TLS library for when I add this capability.
 The server for this architecture is the Display Manager in the *manager* folder, written in Python with
 Flask, Paho and Pillow (see [Server](#server-display-manager) below). Earlier experiments are in the *exp* folder.
 
+The MQTT broker, TLS proxy and digital twin infrastructure are in a separate repo,
+[oracIoTHub](https://github.com/DrJonEA/oracIoTHub) (EMQX, HAProxy, TwinThing and Ansible roles).
+
+![Displays talk MQTT and HTTP to the EMQX and HAProxy infrastructure and the Display Manager service](images/architecture.jpg)
+
 ## Firmware
 
 ### Cosmic Unicorn V1
 Firmware build is targetted at the Cosmic Unicorn using a Pico W. Other firmware may be added over time.
 
-Unit can be configured over USB Serial by sending a JSON string.  See *ex[/pyConofig* as example.
+Unit can be configured over USB Serial by sending a JSON string. See *exp/pyConfig* as example.
+
+![Config JSON with Wi-Fi and MQTT credentials sent over serial USB to the display](images/config-usb.jpg)
 
 ## Server: Display Manager
 The Display Manager (*manager/*) is a Flask app that generates the 32x32 tiles the displays download,
 publishes display commands and clock data over MQTT, and serves a web dashboard.
+
+![Data sources: local time, time zone, weather now, forecast, solar and lunar](images/data-sources.jpg)
 
 ### Running
 ```
@@ -84,6 +104,10 @@ theme's description, the set it came from, the rule that chose it, and any other
 today but were outranked.
 
 ### Calendar themes
+![Eight calendar tiles: Alan Turing, Mendeleev, Easter, summer solstice, two advent days, Dickens and Monday: the Moon](images/calendar-themes.png)
+
+*Calendar tiles rendered from the theme collections (the clock fills the blank bottom rows on the display).*
+
 The calendar tile shows the day of week, date and month over a themed 32x22 background image. The bottom
 10 rows are left clear, because the display draws its clock there. Themes are defined in JSON
 *collections*, one file per set, in *manager/calendar_themes/*. They are re-read on every request, so
@@ -148,10 +172,20 @@ The current sets, highest priority first:
 ## Topics Used
 Relative to topic <ORG> which can be set as a parameter. Defaults to drjonea
 
+![Topic hierarchy: one display, all Cosmic Unicorns, or every display](images/topics.jpg)
+
 - drjonea/display/cosmic/<clientid>	
 - drjonea/display/cosmic
 - drjonea/display
 - drjonea/sensor/cosmic/<clientid>
 
+---
 
+## More from Dr Jon EA
 
+- 📺 **Videos:** [Part 1: MQTT + HTTP: The Unusual Architecture Behind My Pico W Display](https://youtu.be/Bp9ovLeLuKA) · [Part 2: EMQX + HAProxy + Ansible: The IoT Stack Behind My Pico W Display](https://youtu.be/ck1F96P57RM)
+- 📝 **Write-up:** [New Tiles, No New Firmware: My Pico W Cosmic Unicorn Display and the IoT Stack Behind It](https://drjonea.co.uk/2026/11/09/cosmic-unicorn-pico-w-home-display-mqtt-http-emqx-haproxy-ansible/)
+- 🛠️ **Building my projects:** [How to clone and build from my repos](https://drjonea.co.uk/2025/12/15/building-my-projects-from-repo/)
+- 🎓 **Courses and training:** [drjonea.co.uk/training](https://drjonea.co.uk/training/)
+
+Made by [Dr Jon Durrant](https://jondurrant.com) at [Dr Jon EA Ltd](https://drjonea.co.uk) · [YouTube](https://www.youtube.com/@drjonea)
