@@ -8,17 +8,21 @@
 #include "DeviceState.h"
 #include <string.h>
 #include "json-maker/json-maker.h"
+#include "pico/cyw43_arch.h"
 
 #define SEN_TEMP_SLOT 3
 #define SEN_HUMID_SLOT 4
-#define SENSOR_TEMPERATURE "sensorTemp"
-#define SENSOR_HUMIDITY "sensorHumid"
+#define SENSOR_TEMPERATURE 	"sensorTemp"
+#define SENSOR_HUMIDITY 	"sensorHumid"
+#define WIFI_RSSI_SLOT 5
+#define WIFI_RSSI 			"wifiRSSI"
 
 DeviceState *DeviceState::SELF = NULL ;
 DeviceState::DeviceState(): StateTemp() {
-	elements = 5;
+	elements = 6;
 	jsonHelpers[SEN_TEMP_SLOT] = (StateFunc)&DeviceState::jsonSensorTemp;
 	jsonHelpers[SEN_HUMID_SLOT] = (StateFunc)&DeviceState::jsonSensorHumid;
+	jsonHelpers[WIFI_RSSI_SLOT] = (StateFunc)&DeviceState::jsonWifiRSSI;
 
 	setupDefaults();
 
@@ -60,6 +64,7 @@ bool DeviceState::isWifiOnline(){
 void DeviceState::setTemperature(float c){
 	xTemperature = c;
 	setDirty(SEN_TEMP_SLOT);
+	setDirty(WIFI_RSSI_SLOT); // Force RSSI to be reread every time temp is updated
 }
 void DeviceState::setHumidity(float p){
 	xHumidity = p;
@@ -279,5 +284,21 @@ char* DeviceState::jsonSensorHumid(char *buf, unsigned int len){
 	char *p = buf;
 	size_t l = len;
 	p = json_double( p, SENSOR_HUMIDITY, (double)getHumidity(), &l);
+
+	return p;
+}
+
+char* DeviceState::jsonWifiRSSI(char *buf, unsigned int len){
+	char *p = buf;
+	size_t l = len;
+	int32_t rssi;
+
+	if (cyw43_wifi_get_rssi(&cyw43_state, &rssi) == 0){
+		printf("jsonWifiRSSI %d\n", rssi);
+		p = json_int( p, WIFI_RSSI, rssi, &l);
+	} else {
+		printf("jsonWifiRSSI fail\n", rssi);
+		p = json_int( p, WIFI_RSSI, 0, &l);
+	}
 	return p;
 }

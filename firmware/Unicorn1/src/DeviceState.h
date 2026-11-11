@@ -14,13 +14,13 @@
 
 #include "StateTemp.h"
 
-#define DEV_TS 							"TS"
-#define DEV_SSID 					"SSID"
+#define DEV_TS 				"TS"
+#define DEV_SSID 			"SSID"
 #define DEV_SSID_PWD 		"SSID_PWD"
-#define DEV_MQTT_HOST 	"MQTT_HOST"
-#define DEV_MQTT_PORT 	"MQTT_PORT"
-#define DEV_MQTT_CLIENT "MQTT_CLIENT"
-#define DEV_MQTT_USER 	"MQTT_USER"
+#define DEV_MQTT_HOST 		"MQTT_HOST"
+#define DEV_MQTT_PORT 		"MQTT_PORT"
+#define DEV_MQTT_CLIENT 	"MQTT_CLIENT"
+#define DEV_MQTT_USER 		"MQTT_USER"
 #define DEV_MQTT_PWD 		"MQTT_PWD"
 #define DEV_HTTP_STR 		"HTTP_REQ"
 #define DEV_TOPIC_ORG 		"ORG"
@@ -102,6 +102,14 @@ protected:
 	 * @return
 	 */
 	virtual char* jsonSensorHumid(char *buf, unsigned int len);
+
+	/***
+	 * get temperature in json format
+	 * @param buf
+	 * @param len
+	 * @return
+	 */
+	virtual char* jsonWifiRSSI(char *buf, unsigned int len);
 
 private:
 	static DeviceState* SELF ;
