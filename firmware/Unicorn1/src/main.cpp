@@ -239,9 +239,14 @@ void main_task(void *params){
     	if (pAht10 != NULL){
     		float t = pAht10->AHT10_readTemperature(true);
     		float h =  pAht10->AHT10_readHumidity(true);
-    		 DeviceState::singleton()->setTemperature(t);
-    		 DeviceState::singleton()->setHumidity(h);
-    		 printf("Update temp %.2fC, humid %.2f%%\n", t, h);
+
+			if ((t > -1.0) && (t < 80.0)){
+    		    DeviceState::singleton()->setTemperature(t);
+			}
+			if ((h >= 0.0) && (h <= 100.0)){
+    			DeviceState::singleton()->setHumidity(h);
+			}
+    		printf("Update temp %.2fC, humid %.2f%%\n", t, h);
 		} else {
 			printf("No AHT10\n");
 		}
