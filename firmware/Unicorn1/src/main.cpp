@@ -36,6 +36,7 @@ extern "C"{
 #include <WifiHelper.h>
 #include "BlinkAgent.h"
 #include "MQTTRouterDisplay.h"
+#include "MQTTPingTask.h"
 #include "DeviceState.h"
 #include "TileAgent.h"
 
@@ -154,7 +155,7 @@ void main_task(void *params){
 		return;
 	}
 
-	cyw43_wifi_pm(&cyw43_state ,CYW43_AGGRESSIVE_PM);
+	cyw43_wifi_pm(&cyw43_state ,CYW43_NONE_PM);
 
 	cyw43_arch_enable_sta_mode();
 	printf("Connecting to WiFi... %s \n",  DeviceState::singleton()->getSSID()); //WIFI_SSID);
@@ -224,11 +225,16 @@ void main_task(void *params){
 	mqttRouter.init(&mqttAgent);
 	mqttRouter.setTwin(&twin);
 
+	MQTTPingTask pingTask;
+	mqttRouter.setPingTask(&pingTask, &mqttAgent);
+	pingTask.setIPAddr(ipStr);
+
 	mqttAgent.setObserver(DeviceState::singleton());
 	mqttAgent.mqttConnect(mqttTarget, mqttPort, true);
 	mqttAgent.start(tskIDLE_PRIORITY+2);
 	TileAgent::singleton()->setInterface(&mqttAgent);
 	twin.start(tskIDLE_PRIORITY + 1);
+	pingTask.start(tskIDLE_PRIORITY + 1);
 
 
 	uint32_t online = to_ms_since_boot (get_absolute_time());
