@@ -322,3 +322,14 @@ void DeviceState::setNetSpeed(float mbps){
 float DeviceState::getNetSpeed(){
 	return xMBPS;
 }
+
+
+
+void DeviceState::setRSSI(int32_t rssi){
+	xRSSI = rssi;
+	setDirty(WIFI_RSSI_SLOT);
+}
+
+int32_t DeviceState::getRSSI(){
+	return xRSSI;
+}

@@ -374,6 +374,17 @@ void TileAgent::sendSensors(){
 			"humidity",
 			DeviceState::singleton()->getHumidity(),
 			&rem );
+	s =  json_double(
+			s,
+			"mbps",
+			DeviceState::singleton()->getNetSpeed(),
+			&rem );
+	s =  json_int(
+			s,
+			"rssi",
+			DeviceState::singleton()->getRSSI(),
+			&rem );
+	
 
 	s = json_objClose( s , &rem );
 	s = json_objClose(s, &rem);

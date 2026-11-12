@@ -56,6 +56,9 @@ public:
 	void setNetSpeed(float mbps);
 	float getNetSpeed();
 
+	void setRSSI(int32_t rssi);
+	int32_t getRSSI();
+
 	char * getSSID();
 	void setSSID(const char *s);
 
@@ -135,6 +138,7 @@ private:
 	float xHumidity = -100.0;
 	uint8_t xDefCon=5;
 	float xMBPS = 0.0;
+	int32_t xRSSI = 0;
 
 	char *pSSID = NULL;
 	char *pSSIDpwd = NULL;

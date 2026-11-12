@@ -227,6 +227,7 @@ void main_task(void *params){
 
 	MQTTPingTask pingTask;
 	mqttRouter.setPingTask(&pingTask, &mqttAgent);
+	mqttRouter.setGroup("display");
 	pingTask.setIPAddr(ipStr);
 
 	mqttAgent.setObserver(DeviceState::singleton());
@@ -241,11 +242,12 @@ void main_task(void *params){
     while(true) {
 
     	runTimeStats();
-
+		DeviceState::singleton()->startTransaction();
     	if (pAht10 != NULL){
     		float t = pAht10->AHT10_readTemperature(true);
     		float h =  pAht10->AHT10_readHumidity(true);
 
+			
 			if ((t > -1.0) && (t < 80.0)){
     		    DeviceState::singleton()->setTemperature(t);
 			}
@@ -256,7 +258,18 @@ void main_task(void *params){
 		} else {
 			printf("No AHT10\n");
 		}
+
+		int32_t rssi;
+		if (cyw43_wifi_get_rssi(&cyw43_state, &rssi) == 0){
+			printf("jsonWifiRSSI %d\n", rssi);
+			DeviceState::singleton()->setRSSI(rssi);
+		} else {
+			printf("jsonWifiRSSI fail\n", rssi);
+			DeviceState::singleton()->setRSSI(0);
+		}
+
     	DeviceState::singleton()->updateTemp();
+		DeviceState::singleton()->commitTransaction();
 
         vTaskDelay(3000);
 

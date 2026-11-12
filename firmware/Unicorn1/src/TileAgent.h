@@ -15,7 +15,7 @@
 #include "message_buffer.h"
 #include "MQTTInterface.h"
 
-#define REQ_BUFFER 256
+#define REQ_BUFFER 512
 #define REQ_COUNT 5
 #define REQ_JSON_POOL 12
 #define IMG_BUFFER 2500
