@@ -1,4 +1,4 @@
-"""JSON/SSE API routes for the live dashboard (publish, latest, events)."""
+"""JSON/SSE API routes for the live dashboard (publish, latest, events, speedtest)."""
 import json
 
 from flask import Blueprint, Response, jsonify, redirect, request, stream_with_context, url_for
@@ -14,6 +14,17 @@ def create_api_blueprint(mqtt_service):
         if payload:
             mqtt_service.publish(topic, payload)
         return redirect(url_for("pages.index"))
+
+    @bp.route("/speedtest", methods=["POST"])
+    def speedtest():
+        # Upload sink for speed tests. The client labels the body as JSON but
+        # it isn't, so never call get_json()/request.json/request.form here.
+        # Read the raw stream in chunks and discard it so the full upload is
+        # received without buffering it in memory.
+        stream = request.stream
+        while stream.read(64 * 1024):
+            pass
+        return "", 200
 
     @bp.route("/latest")
     def latest():
