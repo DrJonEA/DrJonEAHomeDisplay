@@ -13,6 +13,17 @@ class Config:
     MQTT_TOPIC = "drjonea/display"
     # Sensor nodes publish readings here (see app/sensor_store.py)
     SENSOR_TOPIC = os.environ.get("SENSOR_TOPIC", "drjonea/sensor/#")
+    # External network view from a UniFi gateway (see app/unifi.py). Disabled unless an API key
+    # or a local username/password is set.
+    UNIFI_HOST = os.environ.get("UNIFI_HOST", "192.168.1.1")
+    UNIFI_SITE = os.environ.get("UNIFI_SITE", "default")
+    UNIFI_API_KEY = os.environ.get("UNIFI_API_KEY")
+    UNIFI_USER = os.environ.get("UNIFI_USER")
+    UNIFI_PASSWD = os.environ.get("UNIFI_PASSWD")
+    UNIFI_CA_FILE = os.environ.get("UNIFI_CA_FILE")
+    # Pinged locally only if the gateway's own internet monitors can't be read
+    WAN_PING_TARGETS = [t.strip() for t in os.environ.get(
+        "WAN_PING_TARGETS", "www.google.com,www.microsoft.com,1.1.1.1,aws.amazon.com").split(",") if t.strip()]
     WEATHER_API_KEY = os.environ.get("SMARTCLOCKGOOGLE")
     # Default location used for generated weather tiles (Brighton, UK)
     WEATHER_LAT = float(os.environ.get("WEATHER_LAT", "50.8"))

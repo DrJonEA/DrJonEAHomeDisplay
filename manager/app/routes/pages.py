@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, request
 from .. import calendar_themes
 from ..display_presets import PRESETS, preset_payload_json
 from .network import network_sweep_context
+from .wan import wan_context
 
 
 def create_pages_blueprint(mqtt_service):
@@ -58,6 +59,7 @@ def create_pages_blueprint(mqtt_service):
             sensor_topic=mqtt_service.config.SENSOR_TOPIC,
             sweep_flash=request.args.get("sweep"),
             **network_sweep_context(),
+            **wan_context(),
         )
 
     return bp

@@ -9,9 +9,11 @@ from .mqtt_service import MqttService
 from .routes.api import create_api_blueprint
 from .routes.images_routes import create_images_blueprint
 from .routes.network import create_network_blueprint
+from .routes.wan import create_wan_blueprint
 from .routes.pages import create_pages_blueprint
 from .scheduler import DataScheduler
 from .network_sweep import NetworkSweep
+from .unifi import UniFiClient, fetch_wan
 from .timezone_service import publish_utc_offset
 from .weather import fetch_forecast, fetch_weather
 
@@ -29,6 +31,9 @@ CALENDAR_ANNOUNCE_MINUTES = [0]
 # Network sweep (MQTT ping, ICMP ping, speed tests) every 10 minutes, on minutes no announce uses:
 # announces make every display download a tile over HTTP, which would skew the measurements.
 NETWORK_SWEEP_MINUTES = list(range(7, 60, 10))
+# External network (UniFi gateway + cloud pings) every 5 minutes, matching the gateway's 5-minute
+# traffic reports, on minutes no other job uses.
+WAN_MINUTES = list(range(4, 60, 5))
 
 
 def create_app(config=None):
@@ -75,6 +80,11 @@ def create_app(config=None):
     network_sweep.schedule_minutes = NETWORK_SWEEP_MINUTES
     scheduler.register("network_sweep", lambda: network_sweep.start(trigger="schedule"), NETWORK_SWEEP_MINUTES)
     app.network_sweep = network_sweep
+    app.wan_enabled = UniFiClient.configured(config)
+    app.wan_minutes = WAN_MINUTES
+    if app.wan_enabled:
+        unifi_client = UniFiClient(config)
+        scheduler.register("wan", lambda: fetch_wan(unifi_client, config.WAN_PING_TARGETS), WAN_MINUTES)
     # Future sources (sunrise/sunset, moonrise/moonset) register here the same way.
     app.scheduler = scheduler
 
@@ -82,5 +92,6 @@ def create_app(config=None):
     app.register_blueprint(create_api_blueprint(mqtt_service))
     app.register_blueprint(create_images_blueprint(scheduler, config, mqtt_service.sensor_store))
     app.register_blueprint(create_network_blueprint())
+    app.register_blueprint(create_wan_blueprint())
 
     return app

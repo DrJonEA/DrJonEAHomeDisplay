@@ -1,0 +1,131 @@
+{# External Network panel body (UniFi gateway + cloud latency). Context from routes/wan.py. #}
+{% if not wan_enabled %}
+  <p class="status-value">Not configured. Set <code>UNIFI_API_KEY</code>, or <code>UNIFI_USER</code> and
+  <code>UNIFI_PASSWD</code> (and <code>UNIFI_HOST</code> if the gateway isn't 192.168.1.1).</p>
+{% elif not wan %}
+  <p class="status-value warn">{{ wan_error or 'Waiting for the first read from the gateway.' }}</p>
+  <form action="{{ url_for('wan.refresh') }}" method="post" class="sweep-actions">
+    <button type="submit" class="command preset-btn">REFRESH NOW</button>
+  </form>
+{% else %}
+  {% set last = wan.last_speedtest %}
+  <div class="calendar-today">
+    <div class="tile-card">
+      <img src="{{ url_for('images.wan_tile', fmt='png') }}" alt="external network tile" />
+      <span>WAN (wan.brg565)</span>
+    </div>
+    <div class="status-grid calendar-details">
+      <div class="status-cell">
+        <span class="status-label">ISP</span>
+        <span class="status-value">{{ wan.isp or '-' }}<br />{{ wan.wan_ip or '' }}</span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Last speed test</span>
+        <span class="status-value">
+          {% if last %}&darr; {{ '%.0f' % last.down_mbps if last.down_mbps is not none else '-' }}
+          &middot; &uarr; {{ '%.0f' % last.up_mbps if last.up_mbps is not none else '-' }} Mbps
+          <br />{{ '%.0f' % last.ping_ms if last.ping_ms is not none else '-' }} ms &middot; {{ wan_fmt_time(last.time) }}
+          {% else %}None in the last 7 days{% endif %}
+        </span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Internet</span>
+        <span class="status-value">{{ wan.latency_ms if wan.latency_ms is not none else '-' }} ms latency
+          <br />up {{ fmt_duration(wan.uptime_s) }} &middot; {{ wan.drops if wan.drops is not none else '-' }} drops</span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Traffic now</span>
+        <span class="status-value">
+          &darr; {{ '%.2f' % wan.now_down_mbps if wan.now_down_mbps is not none else '-' }}
+          &middot; &uarr; {{ '%.2f' % wan.now_up_mbps if wan.now_up_mbps is not none else '-' }} Mbps
+        </span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Updated</span>
+        <span class="status-value">{{ wan_fmt_time(wan_updated, '%a %H:%M:%S') }}
+          <br />next {{ wan_fmt_time(wan_next, '%H:%M') }}
+          {% if wan_error %}<br /><span class="warn-text">Last refresh failed: {{ wan_error }}</span>{% endif %}</span>
+      </div>
+      <div class="status-cell">
+        <span class="status-label">Refresh</span>
+        <form action="{{ url_for('wan.refresh') }}" method="post" class="sweep-actions">
+          <button type="submit" class="command preset-btn">REFRESH NOW</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  {% if wan.notes %}
+  <ul class="sweep-notes">{% for note in wan.notes %}<li>{{ note }}</li>{% endfor %}</ul>
+  {% endif %}
+
+  <h3 class="sweep-heading">Cloud latency{% if wan.monitor_source %} &middot; {{ wan.monitor_source }}{% endif %}</h3>
+  {% if wan.monitors %}
+  <table class="widgets sweep-table">
+    <thead><tr><th>Tile</th><th>Target</th><th>Check</th><th>Latency ms</th><th>Availability %</th></tr></thead>
+    <tbody>
+      {% for m in wan.monitors %}
+      <tr>
+        <td>{{ m.label }}</td>
+        <td>{{ m.target }}</td>
+        <td>{{ {'monitor': 'internet monitor', 'alerting': 'WAN alert check'}.get(m.kind, m.kind or '-') }}{% if loop.index > 4 %} (not on tile){% endif %}</td>
+        <td class="{{ 'warn-text' if m.latency_ms is none }}">{{ '%.1f' % m.latency_ms if m.latency_ms is not none else 'no reply' }}</td>
+        <td>{{ '%.1f' % m.availability if m.availability is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="status-value">No latency data.</p>
+  {% endif %}
+
+  <h3 class="sweep-heading">WAN throughput</h3>
+  <table class="widgets sweep-table">
+    <thead><tr><th>Period</th><th>Direction</th><th>Total</th><th>Average Mbps</th><th>Peak Mbps</th><th>Peak at</th></tr></thead>
+    <tbody>
+      {% for label, s in (('Download', wan_24h.down), ('Upload', wan_24h.up)) %}
+      <tr>
+        <td>Last 24h</td><td>{{ label }}</td>
+        {% if s %}
+        <td>{{ fmt_bytes(s.total_bytes) }}</td><td>{{ '%.2f' % s.avg_mbps }}</td>
+        <td>{{ '%.2f' % s.peak_mbps }}</td><td>{{ wan_fmt_time(s.peak_time) }}</td>
+        {% else %}<td colspan="4">-</td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if wan_days %}
+  <table class="widgets sweep-table">
+    <thead><tr><th>Day</th><th>Download</th><th>Upload</th><th>Avg down Mbps</th><th>Avg up Mbps</th></tr></thead>
+    <tbody>
+      {% for d in wan_days %}
+      <tr>
+        <td>{{ wan_fmt_time(d.time, '%a %d %b') }}</td>
+        <td>{{ fmt_bytes(d.down_bytes) }}</td><td>{{ fmt_bytes(d.up_bytes) }}</td>
+        <td>{{ '%.2f' % d.down_mbps }}</td><td>{{ '%.2f' % d.up_mbps }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  <h3 class="sweep-heading">ISP speed tests (last 7 days)</h3>
+  {% if wan_tests %}
+  <table class="widgets sweep-table">
+    <thead><tr><th>When</th><th>Download Mbps</th><th>Upload Mbps</th><th>Ping ms</th></tr></thead>
+    <tbody>
+      {% for t in wan_tests %}
+      <tr>
+        <td>{{ wan_fmt_time(t.time, '%a %d %b %H:%M') }}</td>
+        <td>{{ '%.1f' % t.down_mbps if t.down_mbps is not none else '-' }}</td>
+        <td>{{ '%.1f' % t.up_mbps if t.up_mbps is not none else '-' }}</td>
+        <td>{{ '%.0f' % t.ping_ms if t.ping_ms is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="status-value">No speed tests recorded. Turn on the gateway's scheduled speed test
+  (Settings &gt; Internet &gt; WAN) to build a history.</p>
+  {% endif %}
+{% endif %}

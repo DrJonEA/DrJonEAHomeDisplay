@@ -118,6 +118,10 @@ It listens on port 5000. Configuration is by environment variable:
 | `CALENDAR_THEMES_DIR` | Calendar theme collections | `manager/calendar_themes` |
 | `CALENDAR_IMAGE_DIR` | Calendar theme images | `manager/static/img/calendar` |
 | `SENSOR_TOPIC` | MQTT subscription for sensor node readings | `drjonea/sensor/#` |
+| `UNIFI_API_KEY`, or `UNIFI_USER` and `UNIFI_PASSWD` | UniFi gateway login for the external network view; leave unset to disable it | |
+| `UNIFI_HOST`, `UNIFI_SITE` | UniFi gateway address and site | `192.168.1.1`, `default` |
+| `UNIFI_CA_FILE` | CA bundle for the gateway's certificate (TLS isn't verified without it) | |
+| `WAN_PING_TARGETS` | Hosts to ping if the gateway's own latency monitors can't be read | Google, Microsoft, 1.1.1.1, AWS |
 
 Run it detached from a terminal (for example as a systemd service, or with `nohup ... > manager.log 2>&1`).
 All runtime output goes through `logging`.
@@ -138,6 +142,7 @@ Each tile is available as a PNG for viewing and as BRG565 for the displays:
 | Network: one node, with 24h trend | `/32x32/net/<node>.png` | `/32x32/net/<node>.brg565` |
 | Ping: ICMP and MQTT round trip, all nodes | `/32x32/ping.png` | `/32x32/ping.brg565` |
 | Ping: one node, with 24h ICMP trend | `/32x32/ping/<node>.png` | `/32x32/ping/<node>.brg565` |
+| External network: ISP speed, cloud latency, 24h WAN traffic | `/32x32/wan.png` | `/32x32/wan.brg565` |
 
 The calendar tile accepts `?date=dd/mm/yyyy` to preview any day, e.g. `/32x32/cal.png?date=25/12/2026`.
 
@@ -190,6 +195,42 @@ logs an error, skips the MQTT ping stage, and shows a note in the Network Tests 
 every node would look as if it had stopped answering. Without pongs there are no IP addresses, so ICMP is
 skipped too.
 
+### External network
+With UniFi credentials set, the manager reads the gateway (tested against a UCG Ultra) every 5 minutes
+(at :04, :09 ... :59), using the UniFi Network API under `/proxy/network/api`:
+
+- **ISP:** name, WAN IP, internet latency, uptime and drops, from `stat/health`.
+- **ISP speed tests:** the last 7 days from `stat/report/archive.speedtest`. The newest result is used as
+  the last speed test, because the health summary reports 0 and "Idle". Turn on the gateway's scheduled
+  speed test (Settings > Internet > WAN) to build a history.
+- **WAN throughput:** the current rate, and 5-minute (24 hours) and daily (7 days) WAN byte reports.
+- **Cloud latency:** the gateway's own latency checks, which the UCG Ultra reports in `stat/health`
+  under `wan.uptime_stats.WAN` in two lists:
+  - `monitors`: the console's internet latency view, e.g. Microsoft, Google and 1.1.1.1. These come first.
+  - `alerting_monitors`: WAN health checks, e.g. ping.ui.com, 1.1.1.1 and 8.8.8.8. These are added only
+    for targets not already listed.
+
+  If neither list is found, the manager pings `WAN_PING_TARGETS` itself with `icmplib`. The dashboard
+  shows the source of each figure, and which targets didn't fit on the tile.
+
+Use an API key (Settings > Control Plane > Integrations) or a local-only, read-only ("View Only")
+account. Ubiquiti cloud accounts with MFA can't log in this way. *exp/Unifi/unifiStats.py* runs the
+same reads from the command line, with `--raw` to dump the JSON, and reports where it finds latency
+monitors.
+
+The `wan` tile shows:
+
+- rows 0-4: ↓ ISP download Mbps, and internet latency on the right
+- rows 6-10: ↑ ISP upload Mbps
+- rows 12-22: up to four cloud targets as a letter and ms (G Google, M Microsoft, C Cloudflare,
+  A Amazon, U Ubiquiti, Q Quad9, F Facebook; other IP addresses use their first digit, e.g. 8 for
+  8.8.8.8, and anything else shows ?), coloured green under 30 ms, yellow under 80, red
+  above or no reply
+- rows 24-31: 24 hours of WAN traffic, download in cyan and upload in orange, on one Mbps scale
+
+The download and upload figures are drawn in the same colours as their trend lines. The tile returns
+`503` until the gateway has been read. `/wan` returns the data as JSON.
+
 ### Schedule
 A background scheduler refreshes data and re-announces display presets on fixed minutes past the hour:
 weather every 15 minutes, forecast every 30, and the calendar preset hourly. Every minute it publishes
@@ -208,6 +249,11 @@ plus any problems such as ICMP being unavailable. Below that is a summary of the
 **SPEED TESTS** re-runs just the speed tests and **FULL SWEEP** runs all three stages. While a run is in
 progress the panel refreshes every two seconds. The same data is available as JSON from
 `/network-sweep`.
+
+The **External Network** panel shows the `wan` tile, ISP and WAN IP, the last speed test, internet
+latency, uptime and drops, current traffic, and when the data was read. It also has a table of cloud
+latencies with their source, 24-hour throughput totals, averages and peaks, a per-day table for the last
+7 days, and the last 10 speed tests. **REFRESH NOW** reads the gateway straight away.
 
 The **Sensor Nodes** panel shows the `env`, `net` and `ping` overview tiles, and a table of every node
 with its group, latest readings (temperature, humidity, Mbps, RSSI, ICMP and MQTT times, packet loss), IP

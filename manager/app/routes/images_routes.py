@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, Response, current_app, request
 from PIL import Image
 
-from .. import calendar_themes, images, sensor_tiles
+from .. import calendar_themes, images, sensor_tiles, wan_tiles
 
 
 def create_images_blueprint(scheduler, config, sensor_store):
@@ -196,6 +196,16 @@ def create_images_blueprint(scheduler, config, sensor_store):
         except Exception as exc:
             return Response(str(exc), status=500)
         return _sensor_response(img, fmt)
+
+    @bp.route("/32x32/wan.<any(brg565, png):fmt>")
+    def wan_tile(fmt):
+        wan, _, error = scheduler.get("wan")
+        if wan is None:
+            return Response(error or "External network data not available", status=503)
+        try:
+            return _sensor_response(wan_tiles.generate_wan_tile(wan), fmt)
+        except Exception as exc:
+            return Response(str(exc), status=500)
 
     def _brg565_response(raw, width, height):
         headers = {

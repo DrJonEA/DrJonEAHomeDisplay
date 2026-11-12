@@ -87,6 +87,17 @@ PRESETS = [
         },
     },
     {
+        "key": "wan",
+        "label": "WAN",
+        "topic": DISPLAY_TOPIC,
+        "payload": {
+            "layout": "layout2",
+            "widgets": [
+                {"type": "img", "data": "wan.brg565"},
+            ],
+        },
+    },
+    {
         "key": "pride",
         "label": "PRIDE",
         "topic": DISPLAY_TOPIC,

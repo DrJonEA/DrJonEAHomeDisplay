@@ -206,6 +206,11 @@
     {% endif %}
   </section>
 
+  <section class="panel" id="wan" data-panel-id="EXTERNAL NETWORK">
+    <h2>External Network</h2>
+    {% include "_wan.html" %}
+  </section>
+
   <section class="panel" id="network" data-panel-id="NETWORK SWEEP">
     <h2>Network Tests</h2>
     {% if sweep_flash == 'started' %}

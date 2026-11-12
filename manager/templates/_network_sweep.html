@@ -1,0 +1,117 @@
+{# Network sweep panel body. Rendered inside index.html and on its own by /network-sweep/panel,
+   which the page re-fetches while a sweep is running. #}
+<div id="network-sweep-body" data-running="{{ 'true' if sweep_running else 'false' }}">
+  <div class="status-grid">
+    <div class="status-cell">
+      <span class="status-label">Status</span>
+      {% if sweep_running %}
+      <span class="status-value ok">RUNNING &middot; {{ sweep_last.current or 'starting' if sweep_last else 'starting' }}</span>
+      {% else %}
+      <span class="status-value">Idle</span>
+      {% endif %}
+    </div>
+    <div class="status-cell">
+      <span class="status-label">Last run</span>
+      <span class="status-value">
+        {% if sweep_last %}
+          {{ fmt_time(sweep_last.started) }} &middot; {{ sweep_last.trigger }}
+          {% if sweep_last.finished %} &middot; {{ '%.0f' % (sweep_last.finished - sweep_last.started) }}s{% endif %}
+          {% if sweep_last.status not in ('running', 'done') %}<br /><span class="warn-text">{{ sweep_last.status | upper }}</span>{% endif %}
+        {% else %}
+          None since start-up
+        {% endif %}
+      </span>
+    </div>
+    <div class="status-cell">
+      <span class="status-label">Next scheduled</span>
+      <span class="status-value">{{ fmt_time(sweep_next) }}</span>
+    </div>
+    <div class="status-cell">
+      <span class="status-label">Run now</span>
+      <form action="{{ url_for('network.run') }}" method="post" class="sweep-actions">
+        <button type="submit" name="stages" value="speed" class="command preset-btn" {{ 'disabled' if sweep_running }}>SPEED TESTS</button>
+        <button type="submit" name="stages" value="all" class="command preset-btn" {{ 'disabled' if sweep_running }}>FULL SWEEP</button>
+      </form>
+    </div>
+  </div>
+
+  {% if sweep_last %}
+  {% if sweep_last.notes %}
+  <ul class="sweep-notes">
+    {% for note in sweep_last.notes %}<li>{{ note }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  <h3 class="sweep-heading">Run #{{ sweep_last.id }} &middot; {{ sweep_last.stage_text }}</h3>
+  {% if sweep_last.nodes %}
+  <table class="widgets sweep-table">
+    <thead>
+      <tr>
+        <th>Node</th>
+        <th>IP</th>
+        <th>MQTT ping ms<br />median (min-max)</th>
+        <th>MQTT pongs</th>
+        <th>ICMP ms<br />median (min-max)</th>
+        <th>ICMP jitter / loss</th>
+        <th>Speed test</th>
+        <th>Mbps</th>
+        <th>Time s</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for node_id, r in sweep_last.nodes | dictsort %}
+      <tr>
+        <td>{{ node_id }}</td>
+        <td>{{ r.ip or '-' }}</td>
+        {% if r.mqtt %}
+          <td class="{{ 'warn-text' if r.mqtt.median is none }}">
+            {% if r.mqtt.median is not none %}{{ '%.1f' % r.mqtt.median }} ({{ '%.0f' % r.mqtt.min }}-{{ '%.0f' % r.mqtt.max }}){% else %}no pong{% endif %}
+          </td>
+          <td>{{ r.mqtt.received }}/{{ r.mqtt.sent }}</td>
+        {% else %}
+          <td>-</td><td>-</td>
+        {% endif %}
+        {% if r.icmp %}
+          <td class="{{ 'warn-text' if r.icmp.median is none }}">
+            {% if r.icmp.median is not none %}{{ '%.1f' % r.icmp.median }} ({{ '%.1f' % r.icmp.min }}-{{ '%.1f' % r.icmp.max }}){% else %}no reply{% endif %}
+          </td>
+          <td>{% if r.icmp.jitter is not none %}{{ '%.1f' % r.icmp.jitter }} / {% endif %}{{ '%.0f' % r.icmp.loss }}%</td>
+        {% else %}
+          <td>-</td><td>-</td>
+        {% endif %}
+        {% if r.speed %}
+          <td class="{{ 'ok-text' if r.speed.status == 'ok' else ('' if r.speed.status in ('pending', 'testing') else 'warn-text') }}">{{ r.speed.status }}</td>
+          <td>{{ '%.2f' % r.speed.mbps if r.speed.mbps is not none else '-' }}</td>
+          <td>{{ '%.1f' % r.speed.elapsed if r.speed.elapsed is not none else '-' }}</td>
+        {% else %}
+          <td>-</td><td>-</td><td>-</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {% if sweep_runs | length > 1 %}
+  <h3 class="sweep-heading">Earlier runs</h3>
+  <table class="widgets sweep-table">
+    <thead>
+      <tr><th>#</th><th>Started</th><th>Trigger</th><th>Stages</th><th>Time s</th><th>Status</th><th>Mbps</th></tr>
+    </thead>
+    <tbody>
+      {% for run in sweep_runs[1:] %}
+      <tr>
+        <td>{{ run.id }}</td>
+        <td>{{ fmt_time(run.started) }}</td>
+        <td>{{ run.trigger }}</td>
+        <td>{{ run.stage_text }}</td>
+        <td>{{ '%.0f' % (run.finished - run.started) if run.finished else '-' }}</td>
+        <td class="{{ 'warn-text' if run.status not in ('done', 'running') }}">{{ run.status }}</td>
+        <td>{{ run.speed_summary }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% endif %}
+</div>
