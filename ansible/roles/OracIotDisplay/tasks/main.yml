@@ -23,24 +23,6 @@
     clientid: "{{ inventory_hostname }}"
   when: clientid is not defined
 
-- name: Display Policies ACL
-  include_role:
-    name: OracEmqxAcl
-  vars:
-    policy: "{{ acl_policy }}"
-    clientid: "{{ inventory_hostname }}"
-    dbhost: "{{ OracDBServ }}"
-    dbuser: "{{ OracDBUser }}"
-    dbpasswd: "{{ OracDBPasswd }}"
-    dbport: "{{ OracDBPort }}"
-    dbname: "{{ OracDBSchema }}"
-  loop:
-    - "purge.json"
-    - "thing.json"
-    - "display.json"
-  loop_control:
-    loop_var: acl_policy
-
 - name: Look up existing MQTT password
   delegate_to: 127.0.0.1
   ansible.mariadb.mariadb_query:
@@ -64,6 +46,25 @@
   debug:
     msg: "MQTT Password for {{ inventory_hostname }} is {{ mqtt_passwd }}"
   no_log: true
+
+- name: Display Policies ACL
+  include_role:
+    name: OracEmqxAcl
+  vars:
+    policy: "{{ acl_policy }}"
+    clientid: "{{ inventory_hostname }}"
+    dbhost: "{{ OracDBServ }}"
+    dbuser: "{{ OracDBUser }}"
+    dbpasswd: "{{ OracDBPasswd }}"
+    dbport: "{{ OracDBPort }}"
+    dbname: "{{ OracDBSchema }}"
+    passwd: "{{ mqtt_passwd }}"
+  loop:
+    - "purge.json"
+    - "thing.json"
+    - "display.json"
+  loop_control:
+    loop_var: acl_policy
 
 - name: Copy hardware provisioning script
   ansible.builtin.copy:
