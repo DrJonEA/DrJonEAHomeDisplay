@@ -16,13 +16,16 @@
 #define SENSOR_HUMIDITY 	"sensorHumid"
 #define WIFI_RSSI_SLOT 5
 #define WIFI_RSSI 			"wifiRSSI"
+#define NET_MBPS_SLOT 6
+#define NET_MBPS			"mbps"
 
 DeviceState *DeviceState::SELF = NULL ;
 DeviceState::DeviceState(): StateTemp() {
-	elements = 6;
+	elements = 7;
 	jsonHelpers[SEN_TEMP_SLOT] = (StateFunc)&DeviceState::jsonSensorTemp;
 	jsonHelpers[SEN_HUMID_SLOT] = (StateFunc)&DeviceState::jsonSensorHumid;
 	jsonHelpers[WIFI_RSSI_SLOT] = (StateFunc)&DeviceState::jsonWifiRSSI;
+	jsonHelpers[NET_MBPS_SLOT] = (StateFunc)&DeviceState::jsonMBPS;
 
 	setupDefaults();
 
@@ -301,4 +304,21 @@ char* DeviceState::jsonWifiRSSI(char *buf, unsigned int len){
 		p = json_int( p, WIFI_RSSI, 0, &l);
 	}
 	return p;
+}
+
+
+char* DeviceState::jsonMBPS(char *buf, unsigned int len){
+	char *p = buf;
+	size_t l = len;
+	p = json_double( p, NET_MBPS, (double)xMBPS, &l);
+
+	return p;
+}
+
+void DeviceState::setNetSpeed(float mbps){
+	xMBPS = mbps;
+	setDirty(NET_MBPS_SLOT);
+}
+float DeviceState::getNetSpeed(){
+	return xMBPS;
 }

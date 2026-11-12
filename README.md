@@ -51,6 +51,29 @@ Unit can be configured over USB Serial by sending a JSON string. See *exp/pyConf
 
 ![Config JSON with Wi-Fi and MQTT credentials sent over serial USB to the display](images/config-usb.jpg)
 
+### Network speed test
+A display can measure its own network upload speed and report it in its device state.
+
+To start a test, send a display command over MQTT that contains a `speedtest` key. The value is
+ignored, for example:
+```json
+{"speedtest": true}
+```
+The display then POSTs 100 KB to `<httpConn>/speedtest`, where `<httpConn>` is the display's
+configured HTTP server. It times the request, and if the server answers `200` it sets `mbps` in the
+device state to the upload speed in megabits per second. The new value goes out with the next state
+update, alongside `wifiRSSI`, so you can compare speed and signal strength.
+
+- The payload is just a copy of the Pico's RAM, so the server should accept any body and ignore its
+  content. The request is sent as `Content-Type: application/json`, so the endpoint must not try to
+  parse it.
+- The time includes connecting, sending the headers and waiting for the response, so `mbps` slightly
+  understates the raw transfer rate.
+- To give TCP enough memory for a fast upload, lwIP's `MEM_SIZE` is now 16 KB (it was 4000 bytes) in
+  *port/lwip/lwipopts.h*.
+- The Display Manager doesn't provide a `/speedtest` endpoint yet. You need a server that accepts the
+  POST and returns `200`.
+
 ## Server: Display Manager
 The Display Manager (*manager/*) is a Flask app that generates the 32x32 tiles the displays download,
 publishes display commands and clock data over MQTT, and serves a web dashboard.

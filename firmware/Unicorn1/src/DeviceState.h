@@ -53,6 +53,8 @@ public:
 	int getTimeZone();
 	void setTimeZone(int tz);
 
+	void setNetSpeed(float mbps);
+	float getNetSpeed();
 
 	char * getSSID();
 	void setSSID(const char *s);
@@ -111,6 +113,14 @@ protected:
 	 */
 	virtual char* jsonWifiRSSI(char *buf, unsigned int len);
 
+		/***
+	 * get temperature in json format
+	 * @param buf
+	 * @param len
+	 * @return
+	 */
+	virtual char* jsonMBPS(char *buf, unsigned int len);
+
 private:
 	static DeviceState* SELF ;
 	DeviceState();
@@ -124,6 +134,7 @@ private:
 	float xTemperature = -100.0;
 	float xHumidity = -100.0;
 	uint8_t xDefCon=5;
+	float xMBPS = 0.0;
 
 	char *pSSID = NULL;
 	char *pSSIDpwd = NULL;

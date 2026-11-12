@@ -257,6 +257,26 @@ void TileAgent::processJSON(){
 		changeTimezone(tz);
 	}
 
+	item = json_getProperty( json, "speedtest" );
+	if (item){
+		Request *req = new Request(pImgBuffer, IMG_BUFFER);
+		sprintf(pBuffer, "%s/speedtest",
+				DeviceState::singleton()->getHTTPconn()
+				);
+		char * data = (char *) SRAM_BASE;
+		uint32_t start = to_ms_since_boot (get_absolute_time());
+		if (req->postPayload(pBuffer,  data, (100 * 1024))){
+			uint32_t stop = to_ms_since_boot (get_absolute_time());
+			printf("HTTP POST Result %d in %lums\n", req->getStatusCode(), (stop - start));
+			if (req->getStatusCode() == 200){
+				float seconds = (float)(stop - start) / 1000.0;
+				float mbps = 0.1 / seconds * 8.0;
+				DeviceState::singleton()->setNetSpeed(mbps);
+			}
+		}
+		delete(req);
+	}
+
 }
 
 void TileAgent::processConfig(){
