@@ -9,10 +9,10 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, Response, current_app, request
 from PIL import Image
 
-from .. import calendar_themes, images
+from .. import calendar_themes, images, sensor_tiles
 
 
-def create_images_blueprint(scheduler, config):
+def create_images_blueprint(scheduler, config, sensor_store):
     bp = Blueprint("images", __name__)
 
     @bp.route("/32x32/home")
@@ -152,6 +152,50 @@ def create_images_blueprint(scheduler, config):
             return Response(str(exc), status=400)
         except Exception as exc:
             return Response(str(exc), status=500)
+
+    # Sensor node tiles. Overviews list up to 4 nodes; the per-node variants add a 24h trend.
+    # The firmware fetches <server>/32x32/<widget data>, so e.g. data "env/studycosmic.brg565".
+    _SENSOR_OVERVIEWS = {
+        "env": (sensor_tiles.generate_env_overview, ("temperature", "humidity")),
+        "net": (sensor_tiles.generate_net_overview, ("mbps", "rssi")),
+        "ping": (sensor_tiles.generate_ping_overview, sensor_tiles.PING_METRICS),
+    }
+    _SENSOR_DETAILS = {
+        "env": sensor_tiles.generate_env_detail,
+        "net": sensor_tiles.generate_net_detail,
+        "ping": sensor_tiles.generate_ping_detail,
+    }
+
+    def _sensor_overview(kind):
+        render, metrics = _SENSOR_OVERVIEWS[kind]
+        snapshot = sensor_store.snapshot()
+        if not any(m in n["latest"] for n in snapshot["nodes"] for m in metrics):
+            return None
+        return render(snapshot)
+
+    def _sensor_response(img, fmt):
+        if img is None:
+            return Response("No sensor data yet", status=503)
+        if fmt == "png":
+            return _png_response(img)
+        return _brg565_response(*images.convert_to_brg565(img))
+
+    @bp.route("/32x32/<any(env, net, ping):kind>.<any(brg565, png):fmt>")
+    def sensor_overview(kind, fmt):
+        try:
+            return _sensor_response(_sensor_overview(kind), fmt)
+        except Exception as exc:
+            return Response(str(exc), status=500)
+
+    @bp.route("/32x32/<any(env, net, ping):kind>/<node_id>.<any(brg565, png):fmt>")
+    def sensor_detail(kind, node_id, fmt):
+        try:
+            img = _SENSOR_DETAILS[kind](sensor_store.snapshot(), node_id)
+        except KeyError:
+            return Response("Unknown sensor node %s" % node_id, status=404)
+        except Exception as exc:
+            return Response(str(exc), status=500)
+        return _sensor_response(img, fmt)
 
     def _brg565_response(raw, width, height):
         headers = {

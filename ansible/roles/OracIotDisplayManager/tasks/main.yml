@@ -38,6 +38,12 @@
     mqtt_passwd: "{{ passwd | default(mqtt_password_lookup.query_result[0][0].shadow | default('', true), true) }}"
   no_log: true
 
+- name: Generate an MQTT password if none was supplied or stored
+  ansible.builtin.set_fact:
+    mqtt_passwd: "{{ lookup('password', '/dev/null length=20 chars=ascii_letters,digits') }}"
+  when: mqtt_passwd | default('', true) | length == 0
+  no_log: true
+
 - name: Display MQTT Password as debug
   debug:
     msg: "MQTT Password for {{ inventory_hostname }} is {{ mqtt_passwd }}"
@@ -61,4 +67,23 @@
     - "displaymanager.json"
   loop_control:
     loop_var: acl_policy
+
+# OracEmqxAcl's purge deletes and re-inserts the user without the shadow column, so store the
+# password again (encrypted as the lookup above expects). Without this a generated password
+# would change on every run.
+- name: Store MQTT password for later runs
+  delegate_to: 127.0.0.1
+  ansible.mariadb.mariadb_query:
+    login_db: "{{ OracDBSchema }}"
+    login_host: "{{ OracDBServ }}"
+    login_password: "{{ OracDBPasswd }}"
+    login_port: "{{ OracDBPort }}"
+    login_user: "{{ OracDBUser }}"
+    query: UPDATE mqtt_user SET `shadow` = TO_BASE64(AES_ENCRYPT(%s, %s)) WHERE `username` = %s
+    positional_args:
+      - "{{ mqtt_passwd }}"
+      - "{{ mqtt_shadow_key }}"
+      - "{{ clientid }}"
+    single_transaction: yes
+  no_log: true
  

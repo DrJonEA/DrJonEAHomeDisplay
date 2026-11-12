@@ -54,6 +54,39 @@ PRESETS = [
         },
     },
     {
+        "key": "sensors",
+        "label": "SENSORS",
+        "topic": DISPLAY_TOPIC,
+        "payload": {
+            "layout": "layout2",
+            "widgets": [
+                {"type": "img", "data": "env.brg565"},
+            ],
+        },
+    },
+    {
+        "key": "network",
+        "label": "NETWORK",
+        "topic": DISPLAY_TOPIC,
+        "payload": {
+            "layout": "layout2",
+            "widgets": [
+                {"type": "img", "data": "net.brg565"},
+            ],
+        },
+    },
+    {
+        "key": "ping",
+        "label": "PING",
+        "topic": DISPLAY_TOPIC,
+        "payload": {
+            "layout": "layout2",
+            "widgets": [
+                {"type": "img", "data": "ping.brg565"},
+            ],
+        },
+    },
+    {
         "key": "pride",
         "label": "PRIDE",
         "topic": DISPLAY_TOPIC,

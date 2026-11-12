@@ -71,8 +71,28 @@ update, alongside `wifiRSSI`, so you can compare speed and signal strength.
   understates the raw transfer rate.
 - To give TCP enough memory for a fast upload, lwIP's `MEM_SIZE` is now 16 KB (it was 4000 bytes) in
   *port/lwip/lwipopts.h*.
-- The Display Manager doesn't provide a `/speedtest` endpoint yet. You need a server that accepts the
-  POST and returns `200`.
+- The Display Manager provides this endpoint: `POST /speedtest` reads and discards the body and returns
+  `200`. It also runs the test on every display every 10 minutes (see [Network sweep](#network-sweep)).
+- The result also goes out in the display's next sensor report (see below), about 10 seconds later.
+
+### Sensor reports and ping
+Ten seconds after it last handled a command (`TILE_TIME_MS` in *TileAgent.h*), a display publishes a
+sensor report to `<ORG>/sensor/<group>/<clientid>`:
+```json
+{"id": "studycosmic", "temperature": 21.57, "humidity": 46.84, "mbps": 8.08, "rssi": -58}
+```
+`sendSensors()` in *TileAgent.cpp* currently closes the JSON object twice, so reports end with a stray
+`},`. The Display Manager ignores anything after the first complete object.
+
+Each display also answers TwinThing pings from *lib/twinThingPico1-2W*. It listens on
+`TNG/<clientid>/TPC/PING`, `GRP/<group>/TPC/PING` and `GRP/ALL/TPC/PING`, and replies on
+`TNG/<clientid>/TPC/PONG` with the ping's payload plus its IP address:
+```json
+{"id": 0, "ip": "192.168.22.115"}
+```
+- The pong is built in a fixed buffer, `MAXPINGPAYLOAD` in *MQTTPingTask.h*. It must hold the ping
+  payload plus the IP (about 25 bytes more), so it is set to 80 bytes. The original 20 overflowed.
+- The ping task waits 20 ms before replying, which is included in any MQTT ping time.
 
 ## Server: Display Manager
 The Display Manager (*manager/*) is a Flask app that generates the 32x32 tiles the displays download,
@@ -97,6 +117,7 @@ It listens on port 5000. Configuration is by environment variable:
 | `DISPLAY_TIMEZONE` | IANA timezone for the clock offset and calendar date | `Europe/London` |
 | `CALENDAR_THEMES_DIR` | Calendar theme collections | `manager/calendar_themes` |
 | `CALENDAR_IMAGE_DIR` | Calendar theme images | `manager/static/img/calendar` |
+| `SENSOR_TOPIC` | MQTT subscription for sensor node readings | `drjonea/sensor/#` |
 
 Run it detached from a terminal (for example as a systemd service, or with `nohup ... > manager.log 2>&1`).
 All runtime output goes through `logging`.
@@ -111,8 +132,63 @@ Each tile is available as a PNG for viewing and as BRG565 for the displays:
 | Sun and moon paths | `/solar.png` | `/32x32/solar.brg565` |
 | Calendar | `/32x32/cal.png` | `/32x32/cal.brg565` |
 | Pride flag | `/32x32/pride.png` | `/32x32/pride.brg565` |
+| Sensors: temperature and humidity, all nodes | `/32x32/env.png` | `/32x32/env.brg565` |
+| Sensors: Mbps and WiFi signal, all nodes | `/32x32/net.png` | `/32x32/net.brg565` |
+| Sensors: one node, with 24h trend | `/32x32/env/<node>.png` | `/32x32/env/<node>.brg565` |
+| Network: one node, with 24h trend | `/32x32/net/<node>.png` | `/32x32/net/<node>.brg565` |
+| Ping: ICMP and MQTT round trip, all nodes | `/32x32/ping.png` | `/32x32/ping.brg565` |
+| Ping: one node, with 24h ICMP trend | `/32x32/ping/<node>.png` | `/32x32/ping/<node>.brg565` |
 
 The calendar tile accepts `?date=dd/mm/yyyy` to preview any day, e.g. `/32x32/cal.png?date=25/12/2026`.
+
+### Sensor nodes
+Nodes publish readings to `drjonea/sensor/<group>/<node>` as JSON, for example
+`{"id": "studycosmic", "temperature": 21.5, "humidity": 46.8, "mbps": 8.1, "rssi": -58}`. Every field
+is optional, and the node ID falls back to the last topic segment. The manager keeps each node's latest
+values and 24 hours of history in memory (lost on restart), and marks a node stale after 10 minutes
+without a message. `/sensors` returns the cache as JSON.
+
+- **Overview tiles** (`env`, `net`) show up to four nodes, one 8-pixel row each, starting with a stripe in
+  the node's colour. Nodes keep their colour in the order they were first seen. `env` shows temperature
+  (blue under 16 °C, cyan to 19, green to 24, yellow to 27, red above) and humidity % (orange under 30,
+  cyan to 60, blue above). `net` shows Mbps, a ping summary and four WiFi signal bars (-55, -67, -75
+  and -85 dBm). The ping summary is two blocks, ICMP then MQTT, coloured by round trip (ICMP: green
+  under 50 ms, yellow under 200; MQTT: green under 500 ms, yellow under 1200, since it normally takes
+  about 800 ms; red above, or when nothing replied; dark when not yet measured).
+  Stale nodes are dimmed and listed last.
+- **Node tiles** (`env/<node>`, `net/<node>`) show the main reading at double size, the second reading
+  below it, and a 24-hour trend along the bottom 11 rows, scaled to that day's own range.
+- **Ping tiles** show the ICMP round trip on the left and the MQTT round trip on the right of each
+  row, in ms, coloured with the same bands as the `net` ping summary. An ICMP `--` in red means every echo was
+  lost. The node tile shows ICMP at double size, MQTT below it, and a 24-hour ICMP trend.
+- Overview tiles return `503` until a node has reported, and node tiles return `404` for an unknown node.
+
+### Network sweep
+Every 10 minutes (at :07, :17 ... :57, minutes when no display preset is announced, so tile downloads
+don't skew the figures) the manager measures each live sensor node in three stages:
+
+1. **MQTT ping:** five `{"id": n}` pings to `GRP/display/TPC/PING`, one second apart, timed against
+   the pongs on `TNG/<node>/TPC/PONG`. The median is stored as `mqtt_ms`, the share of pings with no
+   pong as `mqtt_loss` (%), and the node's IP is taken
+   from the pong's `ip` field. This is the full round trip through the broker and the firmware.
+2. **ICMP ping:** ten echoes to each node's IP. The median is stored as `icmp_ms` and the loss as
+   `icmp_loss` (%). This is the network round trip alone. It uses unprivileged ICMP sockets
+   (`icmplib`), which work without root on macOS and in Docker 20.10+; on a bare Linux host the
+   `net.ipv4.ping_group_range` sysctl must include the manager's group.
+3. **Speed test:** `{"speedtest": true}` to each node's own display topic, for example
+   `drjonea/display/cosmic/studycosmic`, one node at a time. The sweep waits for the node's next sensor
+   report (which carries the new `mbps`, about 10 seconds later) before testing the next node, so the
+   uploads never compete.
+
+You can also start a sweep from the dashboard (see [Web dashboard](#web-dashboard)), or with
+`curl -X POST -d stages=speed http://<server>:5000/network-sweep/run` (`stages` is `all`, `speed` or
+`ping`). The pings run first, while the network is quiet. The sweep runs on its own thread, so it doesn't delay
+the other scheduled jobs, and a sweep that is still running when the next slot comes round is skipped.
+The manager's MQTT account needs permission to publish to `GRP/display/TPC/PING` and the display
+topics, and to subscribe to `TNG/+/TPC/PONG`. If the broker refuses the pong subscription, the manager
+logs an error, skips the MQTT ping stage, and shows a note in the Network Tests panel. Without that check,
+every node would look as if it had stopped answering. Without pongs there are no IP addresses, so ICMP is
+skipped too.
 
 ### Schedule
 A background scheduler refreshes data and re-announces display presets on fixed minutes past the hour:
@@ -121,8 +197,23 @@ weather every 15 minutes, forecast every 30, and the calendar preset hourly. Eve
 across daylight saving changes; `blue` is true during the night window (20:00 to 05:00 local).
 
 ### Web dashboard
-`http://<server>:5000/` shows the uplink status, the active widgets, all tiles, and preset and console
-controls for publishing commands. The **Today's Calendar Theme** panel shows today's date and tile, the
+`http://<server>:5000/` shows the uplink status, the active widgets, all tiles, the sensor nodes with
+their latest readings and tiles, the network sweep results, and preset and console controls for
+publishing commands.
+
+The **Network Tests** panel shows whether a sweep is running and which stage it is on, when the last one
+ran, and when the next is due. For the latest run it lists each node's MQTT ping (median, min-max,
+pongs received), ICMP ping (median, min-max, jitter, loss) and speed test (outcome, Mbps, time taken),
+plus any problems such as ICMP being unavailable. Below that is a summary of the previous nine runs.
+**SPEED TESTS** re-runs just the speed tests and **FULL SWEEP** runs all three stages. While a run is in
+progress the panel refreshes every two seconds. The same data is available as JSON from
+`/network-sweep`.
+
+The **Sensor Nodes** panel shows the `env`, `net` and `ping` overview tiles, and a table of every node
+with its group, latest readings (temperature, humidity, Mbps, RSSI, ICMP and MQTT times, packet loss), IP
+address, how long ago it reported, and previews of its node tiles. Stale nodes are greyed out.
+
+The **Today's Calendar Theme** panel shows today's date and tile, the
 theme's description, the set it came from, the rule that chose it, and any other themes that also match
 today but were outranked.
 
@@ -201,6 +292,34 @@ Relative to topic <ORG> which can be set as a parameter. Defaults to drjonea
 - drjonea/display/cosmic
 - drjonea/display
 - drjonea/sensor/cosmic/<clientid>
+
+TwinThing topics used for ping (not under <ORG>):
+
+- GRP/display/TPC/PING, GRP/ALL/TPC/PING and TNG/<clientid>/TPC/PING: ping a group, everything, or one display
+- TNG/<clientid>/TPC/PONG: a display's reply, with its IP address
+
+## Provisioning with Ansible
+*ansible/roles* holds two roles, used alongside the EMQX roles in
+[oracIoTHub](https://github.com/DrJonEA/oracIoTHub):
+
+- **OracIotDisplay** creates a display's MQTT user and ACLs (`purge.json`, `thing.json`,
+  `display.json`) and then provisions the hardware over USB serial from the provisioning server, with
+  Wi-Fi, MQTT and HTTP settings.
+- **OracIotDisplayManager** creates the Display Manager's MQTT user and ACLs (`purge.json`,
+  `thing.json`, `displaymanager.json`).
+
+Both work out the MQTT password the same way:
+
+1. Use `passwd` if it is given and not blank.
+2. Otherwise use the password stored for that user, read from the `shadow` column of `mqtt_user` and
+   decrypted with `mqtt_shadow_key`.
+3. Otherwise generate a random 20-character password.
+
+The password is printed by the "Display MQTT Password as debug" task. After the ACL roles have run, it is
+written back to `shadow`, encrypted, so later runs reuse it. This step is needed because `purge.json`
+deletes and re-creates the user without `shadow`. Without it, a stored password would be lost, and every
+run would set a new one and lock out whatever is using the old one. After the first run for the Display
+Manager, set the printed password as its `MQTT_PASSWD`.
 
 ---
 

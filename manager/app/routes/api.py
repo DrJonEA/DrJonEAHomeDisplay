@@ -1,4 +1,4 @@
-"""JSON/SSE API routes for the live dashboard (publish, latest, events, speedtest)."""
+"""JSON/SSE API routes for the live dashboard (publish, latest, events, sensors, speedtest)."""
 import json
 
 from flask import Blueprint, Response, jsonify, redirect, request, stream_with_context, url_for
@@ -25,6 +25,15 @@ def create_api_blueprint(mqtt_service):
         while stream.read(64 * 1024):
             pass
         return "", 200
+
+    @bp.route("/sensors")
+    def sensors():
+        """Cached sensor nodes with latest values and history (?since=<epoch secs> trims history)."""
+        try:
+            since = float(request.args.get("since", 0))
+        except ValueError:
+            since = 0.0
+        return jsonify(mqtt_service.sensor_store.snapshot(since=since))
 
     @bp.route("/latest")
     def latest():

@@ -309,3 +309,58 @@ button.preset-btn:hover {
   color: var(--text-dim);
   font-size: 0.8rem;
 }
+
+/* Sensor nodes panel */
+.sensor-table {
+  margin-top: 0.75rem;
+}
+.sensor-table tr.stale td {
+  color: var(--text-dim);
+}
+.sensor-tiles img {
+  width: 64px;
+  height: 64px;
+  image-rendering: pixelated;
+  border: 1px solid var(--holo-blue-dim);
+  background: #000;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+
+/* Network sweep panel */
+.ok-text { color: var(--ok-green); }
+.warn-text { color: var(--alert-red); }
+.sweep-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.sweep-actions button.preset-btn {
+  width: auto;
+  padding: 0.4rem 0.8rem;
+}
+.sweep-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.sweep-heading {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  margin: 1rem 0 0.4rem 0;
+}
+.sweep-notes {
+  margin: 0.75rem 0 0 0;
+  padding-left: 1.2rem;
+  color: var(--imperial-gold);
+  font-size: 0.85rem;
+}
+.sweep-flash {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+}
+.sweep-table {
+  overflow-x: auto;
+  display: block;
+}

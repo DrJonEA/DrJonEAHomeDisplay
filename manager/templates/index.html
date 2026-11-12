@@ -128,6 +128,94 @@
     </div>
   </section>
 
+  <section class="panel" id="sensors" data-panel-id="SENSOR NODES">
+    <h2>Sensor Nodes</h2>
+    {% if sensor_nodes %}
+    {% set has_env = sensor_nodes | selectattr('latest.temperature', 'defined') | list or sensor_nodes | selectattr('latest.humidity', 'defined') | list %}
+    {% set has_net = sensor_nodes | selectattr('latest.mbps', 'defined') | list or sensor_nodes | selectattr('latest.rssi', 'defined') | list %}
+    {% set has_ping = sensor_nodes | selectattr('latest.icmp_ms', 'defined') | list or sensor_nodes | selectattr('latest.mqtt_ms', 'defined') | list or sensor_nodes | selectattr('latest.icmp_loss', 'defined') | list %}
+    <div class="tile-grid">
+      {% if has_env %}
+      <div class="tile-card">
+        <img src="{{ url_for('images.sensor_overview', kind='env', fmt='png') }}" alt="environment overview tile" />
+        <span>ENV (env.brg565)</span>
+      </div>
+      {% endif %}
+      {% if has_net %}
+      <div class="tile-card">
+        <img src="{{ url_for('images.sensor_overview', kind='net', fmt='png') }}" alt="network overview tile" />
+        <span>NET (net.brg565)</span>
+      </div>
+      {% endif %}
+      {% if has_ping %}
+      <div class="tile-card">
+        <img src="{{ url_for('images.sensor_overview', kind='ping', fmt='png') }}" alt="ping overview tile" />
+        <span>PING (ping.brg565)</span>
+      </div>
+      {% endif %}
+    </div>
+    <table class="widgets sensor-table">
+      <thead>
+        <tr>
+          <th>Node</th>
+          <th>Group</th>
+          <th>Temp &deg;C</th>
+          <th>Humidity %</th>
+          <th>Mbps</th>
+          <th>RSSI dBm</th>
+          <th>ICMP ms</th>
+          <th>Loss %</th>
+          <th>MQTT ms</th>
+          <th>IP</th>
+          <th>Seen</th>
+          <th>Tiles</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for node in sensor_nodes %}
+        {% set l = node.latest %}
+        <tr class="{{ 'stale' if node.stale }}">
+          <td>{{ node.id }}</td>
+          <td>{{ node.group or '-' }}</td>
+          <td>{{ '%.1f' % l.temperature if l.temperature is defined else '-' }}</td>
+          <td>{{ '%.1f' % l.humidity if l.humidity is defined else '-' }}</td>
+          <td>{{ '%.1f' % l.mbps if l.mbps is defined else '-' }}</td>
+          <td>{{ '%d' % l.rssi if l.rssi is defined else '-' }}</td>
+          <td>{{ '%.1f' % l.icmp_ms if l.icmp_ms is defined else '-' }}</td>
+          <td>{{ '%.0f' % l.icmp_loss if l.icmp_loss is defined else '-' }}</td>
+          <td>{{ '%.1f' % l.mqtt_ms if l.mqtt_ms is defined else '-' }}</td>
+          <td>{{ node.ip or '-' }}</td>
+          <td>{{ node.age }}{% if node.stale %} <span class="status-value warn">STALE</span>{% endif %}</td>
+          <td class="sensor-tiles">
+            {% if l.temperature is defined or l.humidity is defined %}
+            <img src="{{ url_for('images.sensor_detail', kind='env', node_id=node.id, fmt='png') }}" alt="env/{{ node.id }}.brg565" title="env/{{ node.id }}.brg565" />
+            {% endif %}
+            {% if l.mbps is defined or l.rssi is defined %}
+            <img src="{{ url_for('images.sensor_detail', kind='net', node_id=node.id, fmt='png') }}" alt="net/{{ node.id }}.brg565" title="net/{{ node.id }}.brg565" />
+            {% endif %}
+            {% if l.icmp_ms is defined or l.mqtt_ms is defined or l.icmp_loss is defined %}
+            <img src="{{ url_for('images.sensor_detail', kind='ping', node_id=node.id, fmt='png') }}" alt="ping/{{ node.id }}.brg565" title="ping/{{ node.id }}.brg565" />
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="status-value">No sensor data received yet on {{ sensor_topic }}</p>
+    {% endif %}
+  </section>
+
+  <section class="panel" id="network" data-panel-id="NETWORK SWEEP">
+    <h2>Network Tests</h2>
+    {% if sweep_flash == 'started' %}
+    <p class="sweep-flash ok-text">Run started. This panel updates as it goes.</p>
+    {% elif sweep_flash == 'busy' %}
+    <p class="sweep-flash warn-text">A sweep is already running; wait for it to finish.</p>
+    {% endif %}
+    {% include "_network_sweep.html" %}
+  </section>
+
   <section class="panel" id="commands" data-panel-id="QUICK COMMANDS">
     <h2>Quick Commands</h2>
     <div class="preset-grid">
@@ -161,8 +249,10 @@
   <script>
     window.DECK_CONFIG = {
       latestUrl: "{{ url_for('api.latest') }}",
-      eventsUrl: "{{ url_for('api.events') }}"
+      eventsUrl: "{{ url_for('api.events') }}",
+      sweepPanelUrl: "{{ url_for('network.panel') }}"
     };
   </script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/network_sweep.js') }}"></script>
 {% endblock %}

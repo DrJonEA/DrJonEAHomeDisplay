@@ -1,11 +1,13 @@
 """Dashboard page routes."""
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 
 from .. import calendar_themes
 from ..display_presets import PRESETS, preset_payload_json
+from .network import network_sweep_context
 
 
 def create_pages_blueprint(mqtt_service):
@@ -35,6 +37,14 @@ def create_pages_blueprint(mqtt_service):
             "others": others,
         }
 
+    def _sensor_nodes():
+        """Cached sensor nodes for the dashboard, with a human-readable age."""
+        snapshot = mqtt_service.sensor_store.snapshot(since=time.time())  # no history needed
+        for node in snapshot["nodes"]:
+            age = int(snapshot["now"] - node["last_seen"])
+            node["age"] = "%ds" % age if age < 120 else "%dm" % (age // 60) if age < 7200 else "%dh" % (age // 3600)
+        return snapshot["nodes"]
+
     @bp.route("/")
     def index():
         return render_template(
@@ -44,6 +54,10 @@ def create_pages_blueprint(mqtt_service):
             presets=PRESETS,
             preset_payload_json=preset_payload_json,
             calendar=_calendar_today(),
+            sensor_nodes=_sensor_nodes(),
+            sensor_topic=mqtt_service.config.SENSOR_TOPIC,
+            sweep_flash=request.args.get("sweep"),
+            **network_sweep_context(),
         )
 
     return bp
