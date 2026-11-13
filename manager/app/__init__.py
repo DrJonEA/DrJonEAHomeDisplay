@@ -1,4 +1,6 @@
 """Flask application factory for the display manager."""
+import json
+import logging
 import os
 
 from flask import Flask
@@ -9,10 +11,13 @@ from .mqtt_service import MqttService
 from .routes.api import create_api_blueprint
 from .routes.images_routes import create_images_blueprint
 from .routes.network import create_network_blueprint
+from .routes.presence import create_presence_blueprint
 from .routes.wan import create_wan_blueprint
 from .routes.pages import create_pages_blueprint
 from .scheduler import DataScheduler
+from .defcon import DefconMonitor
 from .network_sweep import NetworkSweep
+from .presence import PresenceTracker, arrival_text, load_people
 from .unifi import UniFiClient, fetch_wan
 from .timezone_service import publish_utc_offset
 from .weather import fetch_forecast, fetch_weather
@@ -34,6 +39,8 @@ NETWORK_SWEEP_MINUTES = list(range(7, 60, 10))
 # External network (UniFi gateway + cloud pings) every 5 minutes, matching the gateway's 5-minute
 # traffic reports, on minutes no other job uses.
 WAN_MINUTES = list(range(4, 60, 5))
+# Show the family presence tile every 10 minutes, on minutes no other announce or the network sweep uses.
+PRESENCE_ANNOUNCE_MINUTES = list(range(2, 60, 10))
 
 
 def create_app(config=None):
@@ -85,13 +92,53 @@ def create_app(config=None):
     if app.wan_enabled:
         unifi_client = UniFiClient(config)
         scheduler.register("wan", lambda: fetch_wan(unifi_client, config.WAN_PING_TARGETS), WAN_MINUTES)
+
+    # Family presence: every minute, with its own UniFi session (the scheduler can be refreshed
+    # from request threads, and requests sessions aren't thread-safe).
+    app.presence_error = None
+    app.presence_enabled = False
+    app.presence_tracker = None
+    if app.wan_enabled:
+        if os.path.exists(config.PRESENCE_FILE):
+            try:
+                people, grace = load_people(config.PRESENCE_FILE)
+                def announce_arrival(names):
+                    # Presence tile plus a scrolling "<name> is home".
+                    payload = {"layout": "layout2", "widgets": [
+                        {"type": "img", "data": "presence.brg565"},
+                        {"type": "txt", "data": arrival_text(names)},
+                    ]}
+                    mqtt_service.publish(DISPLAY_TOPIC, json.dumps(payload))
+                    logging.info("Presence: announced %s", arrival_text(names))
+
+                tracker = PresenceTracker(UniFiClient(config), people, grace, on_arrival=announce_arrival)
+                scheduler.register("presence", tracker.update, list(range(60)))
+                scheduler.register("announce_presence", lambda: announce("presence"), PRESENCE_ANNOUNCE_MINUTES)
+                app.presence_tracker = tracker
+                app.presence_enabled = True
+            except (ValueError, KeyError, OSError) as exc:
+                app.presence_error = "Can't read %s: %s" % (config.PRESENCE_FILE, exc)
+                logging.error(app.presence_error)
+        else:
+            app.presence_error = "No people file at %s" % config.PRESENCE_FILE
+    else:
+        app.presence_error = "Needs the UniFi settings (UNIFI_API_KEY, or UNIFI_USER and UNIFI_PASSWD)"
     # Future sources (sunrise/sunset, moonrise/moonset) register here the same way.
     app.scheduler = scheduler
+
+    # Central DEFCON status, sent every 30s (started from main.py with the other background threads).
+    app.defcon = DefconMonitor(
+        config, mqtt_service, DISPLAY_TOPIC,
+        get_presence=lambda: app.presence_tracker.latest if app.presence_tracker else None,
+        get_wan=lambda: scheduler.get("wan")[:2] if app.wan_enabled else (None, None),
+        is_paused=lambda: network_sweep.running,
+    )
 
     app.register_blueprint(create_pages_blueprint(mqtt_service))
     app.register_blueprint(create_api_blueprint(mqtt_service))
     app.register_blueprint(create_images_blueprint(scheduler, config, mqtt_service.sensor_store))
     app.register_blueprint(create_network_blueprint())
     app.register_blueprint(create_wan_blueprint())
+    app.register_blueprint(create_presence_blueprint())
 
     return app

@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, request
 from .. import calendar_themes
 from ..display_presets import PRESETS, preset_payload_json
 from .network import network_sweep_context
+from .presence import presence_context
 from .wan import wan_context
 
 
@@ -46,6 +47,15 @@ def create_pages_blueprint(mqtt_service):
             node["age"] = "%ds" % age if age < 120 else "%dm" % (age // 60) if age < 7200 else "%dh" % (age // 3600)
         return snapshot["nodes"]
 
+    def _defcon():
+        from flask import current_app
+        state = current_app.defcon.snapshot()
+        tz = ZoneInfo(mqtt_service.config.DISPLAY_TIMEZONE)
+        for key in ("evaluated", "sent", "changed"):
+            state[key + "_text"] = datetime.fromtimestamp(state[key], tz).strftime("%H:%M:%S") if state.get(key) else "-"
+        state["interval"] = mqtt_service.config.DEFCON_INTERVAL_SECONDS
+        return state
+
     @bp.route("/")
     def index():
         return render_template(
@@ -60,6 +70,8 @@ def create_pages_blueprint(mqtt_service):
             sweep_flash=request.args.get("sweep"),
             **network_sweep_context(),
             **wan_context(),
+            **presence_context(),
+            defcon=_defcon(),
         )
 
     return bp

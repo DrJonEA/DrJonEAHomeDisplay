@@ -1,0 +1,7 @@
+{
+  "grace_minutes": 3,
+  "people": [
+    {"name": "Jon", "letter": "J", "macs": ["aa:bb:cc:dd:ee:01"], "client_names": ["Jons-Phone"]},
+    {"name": "Kevin", "letter": "K", "macs": ["aa:bb:cc:dd:ee:02"], "client_names": ["Kevins-Phone"]}
+  ]
+}

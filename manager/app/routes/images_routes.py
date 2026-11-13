@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from flask import Blueprint, Response, current_app, request
 from PIL import Image
 
-from .. import calendar_themes, images, sensor_tiles, wan_tiles
+from .. import calendar_themes, images, presence_tiles, sensor_tiles, wan_tiles
 
 
 def create_images_blueprint(scheduler, config, sensor_store):
@@ -204,6 +204,21 @@ def create_images_blueprint(scheduler, config, sensor_store):
             return Response(error or "External network data not available", status=503)
         try:
             return _sensor_response(wan_tiles.generate_wan_tile(wan), fmt)
+        except Exception as exc:
+            return Response(str(exc), status=500)
+
+    @bp.route("/32x32/presence.<any(brg565, png):fmt>")
+    def presence_tile(fmt):
+        # The tracker's own snapshot is updated before an arrival announcement is published, so a
+        # display fetching the tile in response sees the new state (the scheduler cache lags).
+        tracker = current_app.presence_tracker
+        presence, _, error = scheduler.get("presence")
+        if tracker is not None and tracker.latest is not None:
+            presence = tracker.latest
+        if presence is None:
+            return Response(error or "Presence data not available", status=503)
+        try:
+            return _sensor_response(presence_tiles.generate_presence_tile(presence), fmt)
         except Exception as exc:
             return Response(str(exc), status=500)
 

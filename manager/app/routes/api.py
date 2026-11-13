@@ -15,6 +15,12 @@ def create_api_blueprint(mqtt_service):
             mqtt_service.publish(topic, payload)
         return redirect(url_for("pages.index"))
 
+    @bp.route("/defcon")
+    def defcon():
+        """Current DEFCON level, the reasons for it, and when it was last sent."""
+        from flask import current_app
+        return jsonify(current_app.defcon.snapshot())
+
     @bp.route("/speedtest", methods=["POST"])
     def speedtest():
         # Upload sink for speed tests. The client labels the body as JSON but

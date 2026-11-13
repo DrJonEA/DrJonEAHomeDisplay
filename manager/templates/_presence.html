@@ -1,0 +1,39 @@
+{# Family Presence panel body. Context from routes/presence.py. #}
+{% if not presence_enabled %}
+  <p class="status-value">Not set up: {{ presence_setup_error }}. Copy <code>manager/presence.example.json</code>
+  to <code>manager/presence.json</code> and list each person's phone MAC and/or UniFi client name.</p>
+{% elif not presence %}
+  <p class="status-value warn">{{ presence_error or 'Waiting for the first read from the gateway.' }}</p>
+{% else %}
+  <div class="calendar-today">
+    <div class="tile-card">
+      <img src="{{ url_for('images.presence_tile', fmt='png') }}" alt="family presence tile" />
+      <span>PRESENCE (presence.brg565)</span>
+    </div>
+    <div class="calendar-details">
+      <table class="widgets">
+        <thead><tr><th>Person</th><th>Status</th><th>Since</th><th>Last seen</th><th>Devices connected</th></tr></thead>
+        <tbody>
+          {% for p in presence.people %}
+          <tr>
+            <td>{{ p.name }} ({{ p.letter }}){% if not p.configured %}<br /><span class="warn-text">no devices configured</span>{% endif %}</td>
+            <td class="{{ 'ok-text' if p.home else ('' if p.home is none else 'warn-text') }}">
+              {{ 'HOME' if p.home else ('UNKNOWN' if p.home is none else 'AWAY') }}</td>
+            <td>{{ p.since_text }}</td>
+            <td>{{ p.seen_text }}</td>
+            <td>
+              {% for d in p.devices %}{{ d.name }} &middot; {{ d.ip or '-' }} &middot; {{ d.network or '-' }}{% if d.signal is not none %} &middot; {{ d.signal }} dBm{% endif %}{% if not loop.last %}<br />{% endif %}{% else %}-{% endfor %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="sweep-flash">Updated {{ presence_updated }} &middot; away after {{ '%.0f' % presence.grace_minutes }} min unseen
+        &middot; last arrival announced: {{ presence_arrival or 'none since start-up' }}
+        {% if presence_error %}<br /><span class="warn-text">Last refresh failed: {{ presence_error }}</span>{% endif %}</p>
+      <form action="{{ url_for('presence.refresh') }}" method="post" class="sweep-actions">
+        <button type="submit" class="command preset-btn">REFRESH NOW</button>
+      </form>
+    </div>
+  </div>
+{% endif %}

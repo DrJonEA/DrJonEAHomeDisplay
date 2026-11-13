@@ -21,6 +21,14 @@ class Config:
     UNIFI_USER = os.environ.get("UNIFI_USER")
     UNIFI_PASSWD = os.environ.get("UNIFI_PASSWD")
     UNIFI_CA_FILE = os.environ.get("UNIFI_CA_FILE")
+    # Family presence (see app/presence.py): people and their devices. Needs the UniFi settings.
+    PRESENCE_FILE = os.environ.get("PRESENCE_FILE", os.path.join(_MANAGER_DIR, "presence.json"))
+    # DEFCON status sent to the displays (see app/defcon.py). 5 is all well; never below MIN.
+    DEFCON_INTERVAL_SECONDS = int(os.environ.get("DEFCON_INTERVAL_SECONDS", "30"))
+    DEFCON_MIN_LEVEL = int(os.environ.get("DEFCON_MIN_LEVEL", "2"))
+    DEFCON_SLOW_LATENCY_MS = float(os.environ.get("DEFCON_SLOW_LATENCY_MS", "80"))
+    DEFCON_SLOW_DOWN_MBPS = float(os.environ.get("DEFCON_SLOW_DOWN_MBPS", "250"))
+    DEFCON_SLOW_UP_MBPS = float(os.environ.get("DEFCON_SLOW_UP_MBPS", "25"))
     # Pinged locally only if the gateway's own internet monitors can't be read
     WAN_PING_TARGETS = [t.strip() for t in os.environ.get(
         "WAN_PING_TARGETS", "www.google.com,www.microsoft.com,1.1.1.1,aws.amazon.com").split(",") if t.strip()]

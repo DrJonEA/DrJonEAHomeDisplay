@@ -30,6 +30,7 @@ import json
 import os
 import statistics
 import sys
+import tempfile
 import time
 from datetime import datetime
 
@@ -42,6 +43,8 @@ API_KEY = os.environ.get("UNIFI_API_KEY")
 USER = os.environ.get("UNIFI_USER")
 PASSWD = os.environ.get("UNIFI_PASSWD")
 CA_FILE = os.environ.get("UNIFI_CA_FILE")
+
+JSON_RETRIES = 3  # the gateway occasionally sends a damaged JSON body; ask again
 
 BASE = "https://%s" % HOST
 NETWORK = "%s/proxy/network/api/s/%s" % (BASE, SITE)
@@ -80,14 +83,27 @@ class UniFi:
 
     def call(self, method, path, body=None):
         url = "%s/%s" % (NETWORK, path)
-        resp = self.session.request(method, url, json=body, timeout=15)
-        if resp.status_code == 401 and self.auth == "API key":
-            raise RuntimeError(
-                "HTTP 401 on %s: this firmware may not accept API keys on the Network API; "
-                "try UNIFI_USER/UNIFI_PASSWD instead" % path)
-        if resp.status_code != 200:
-            raise RuntimeError("HTTP %d on %s: %s" % (resp.status_code, path, resp.text[:200]))
-        data = resp.json()
+        for attempt in range(1, JSON_RETRIES + 1):
+            resp = self.session.request(method, url, json=body, timeout=15)
+            if resp.status_code == 401 and self.auth == "API key":
+                raise RuntimeError(
+                    "HTTP 401 on %s: this firmware may not accept API keys on the Network API; "
+                    "try UNIFI_USER/UNIFI_PASSWD instead" % path)
+            if resp.status_code != 200:
+                raise RuntimeError("HTTP %d on %s: %s" % (resp.status_code, path, resp.text[:200]))
+            try:
+                data = resp.json()
+                break
+            except ValueError as exc:
+                detail = bad_json_detail(resp, exc)
+                if attempt < JSON_RETRIES:
+                    print("(bad JSON from %s, attempt %d/%d: %s; retrying)" % (path, attempt, JSON_RETRIES, detail),
+                          file=sys.stderr)
+                    time.sleep(0.5 * attempt)
+                    continue
+                dump = save_body(resp, path)
+                raise RuntimeError("bad JSON from %s after %d attempts: %s. Body saved to %s"
+                                   % (path, JSON_RETRIES, detail, dump))
         if self.raw:
             print("\n--- %s %s ---\n%s" % (method, path, json.dumps(data, indent=2)[:4000]))
         meta = data.get("meta", {})
@@ -99,6 +115,29 @@ class UniFi:
         """stat/report/<interval>.<kind> between epoch seconds start..end."""
         return self.call("POST", "stat/report/%s.%s" % (interval, kind),
                          {"attrs": attrs + ["time"], "start": int(start * 1000), "end": int(end * 1000)})
+
+
+def bad_json_detail(resp, exc):
+    """Why a body didn't parse: where, how long it was versus what the headers promised, and the
+    text around the fault (to tell a cut-off body from a malformed one)."""
+    body = resp.content
+    pos = getattr(exc, "pos", None)
+    parts = ["%s" % exc, "%d bytes received" % len(body)]
+    if resp.headers.get("Content-Length"):
+        parts.append("Content-Length %s" % resp.headers["Content-Length"])
+    for header in ("Transfer-Encoding", "Content-Encoding"):
+        if resp.headers.get(header):
+            parts.append("%s %s" % (header, resp.headers[header]))
+    if pos is not None:
+        parts.append("around the error: %r" % resp.text[max(0, pos - 60):pos + 60])
+    return ", ".join(parts)
+
+
+def save_body(resp, path):
+    fd, name = tempfile.mkstemp(prefix="unifi-%s-" % path.replace("/", "_"), suffix=".txt")
+    with os.fdopen(fd, "wb") as f:
+        f.write(resp.content)
+    return name
 
 
 def fmt_time(ms_or_s):

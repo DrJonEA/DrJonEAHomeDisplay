@@ -22,6 +22,7 @@ SPEEDTEST_DAYS = 7
 LOCAL_PING_COUNT = 5
 LOCAL_PING_INTERVAL = 0.2
 LOCAL_PING_TIMEOUT = 1.0
+JSON_RETRIES = 3  # the gateway occasionally sends a damaged JSON body; ask again
 
 # Short labels for well-known monitor targets: one letter fits the 3x5 tile font.
 _TARGET_LABELS = [
@@ -78,13 +79,24 @@ class UniFiClient:
         if not self._logged_in:
             self._login()
         url = "%s/proxy/network/api/s/%s/%s" % (self.base, self.site, path)
-        resp = self.session.request(method, url, json=body, timeout=15)
-        if resp.status_code == 401 and not self.api_key:
-            self._login()  # session expired
+        for attempt in range(1, JSON_RETRIES + 1):
             resp = self.session.request(method, url, json=body, timeout=15)
-        if resp.status_code != 200:
-            raise RuntimeError("UniFi HTTP %d on %s" % (resp.status_code, path))
-        data = resp.json()
+            if resp.status_code == 401 and not self.api_key:
+                self._login()  # session expired
+                resp = self.session.request(method, url, json=body, timeout=15)
+            if resp.status_code != 200:
+                raise RuntimeError("UniFi HTTP %d on %s" % (resp.status_code, path))
+            try:
+                data = resp.json()
+                break
+            except ValueError as exc:
+                detail = "%s (%d bytes, Content-Length %s)" % (
+                    exc, len(resp.content), resp.headers.get("Content-Length", "-"))
+                if attempt == JSON_RETRIES:
+                    raise RuntimeError("UniFi bad JSON from %s after %d attempts: %s" % (path, attempt, detail))
+                logging.warning("UniFi bad JSON from %s (attempt %d/%d): %s; retrying",
+                                path, attempt, JSON_RETRIES, detail)
+                time.sleep(0.5 * attempt)
         rc = data.get("meta", {}).get("rc")
         if rc not in (None, "ok"):
             raise RuntimeError("UniFi %s returned rc=%s" % (path, rc))
@@ -158,6 +170,7 @@ def fetch_wan(client, ping_targets, now=None):
         "isp": wan.get("isp_name") or wan.get("isp_organization"),
         "wan_ip": wan.get("wan_ip"),
         "status": wan.get("status"),
+        "internet_status": www.get("status"),
         "latency_ms": www.get("latency"),
         "uptime_s": www.get("uptime"),
         "drops": www.get("drops"),

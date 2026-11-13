@@ -23,6 +23,34 @@
     </div>
   </section>
 
+  <section class="panel" id="defcon" data-panel-id="DEFCON">
+    <h2>DEFCON Status</h2>
+    <div class="defcon-row">
+      <div class="defcon-level defcon-{{ defcon.level or 'none' }}">{{ defcon.level or '-' }}</div>
+      <div class="defcon-detail">
+        {% if defcon.reasons %}
+        <table class="widgets">
+          <thead><tr><th>Reason</th><th>Effect</th></tr></thead>
+          <tbody>
+            {% for r in defcon.reasons %}
+            <tr><td>{{ r.text }}</td><td class="{{ '' if r.effect == 'none' else 'warn-text' }}">{{ r.effect }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% elif defcon.level %}
+        <p class="status-value ok">All clear</p>
+        {% else %}
+        <p class="status-value">Not evaluated yet</p>
+        {% endif %}
+        <p class="sweep-flash">
+          Level since {{ defcon.changed_text }} &middot; evaluated {{ defcon.evaluated_text }} &middot;
+          sent to displays {{ defcon.sent_text }} (every {{ defcon.interval }}s)
+          {% if defcon.paused %}<br /><span class="warn-text">Paused while a network test runs</span>{% endif %}
+        </p>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="calendar-today" data-panel-id="CALENDAR THEME">
     <h2>Today's Calendar Theme</h2>
     <div class="calendar-today">
@@ -204,6 +232,11 @@
     {% else %}
     <p class="status-value">No sensor data received yet on {{ sensor_topic }}</p>
     {% endif %}
+  </section>
+
+  <section class="panel" id="presence" data-panel-id="FAMILY PRESENCE">
+    <h2>Who's Home</h2>
+    {% include "_presence.html" %}
   </section>
 
   <section class="panel" id="wan" data-panel-id="EXTERNAL NETWORK">

@@ -364,3 +364,31 @@ button.preset-btn:hover {
   overflow-x: auto;
   display: block;
 }
+
+/* DEFCON panel */
+.defcon-row {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.defcon-level {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  line-height: 1;
+  width: 5rem;
+  height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid currentColor;
+}
+.defcon-5 { color: var(--ok-green); }
+.defcon-4 { color: var(--holo-blue); }
+.defcon-3 { color: var(--imperial-gold); }
+.defcon-2, .defcon-1 { color: var(--alert-red); }
+.defcon-none { color: var(--text-dim); }
+.defcon-detail {
+  flex: 1;
+  min-width: 240px;
+}

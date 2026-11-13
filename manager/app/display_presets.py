@@ -98,6 +98,17 @@ PRESETS = [
         },
     },
     {
+        "key": "presence",
+        "label": "PRESENCE",
+        "topic": DISPLAY_TOPIC,
+        "payload": {
+            "layout": "layout2",
+            "widgets": [
+                {"type": "img", "data": "presence.brg565"},
+            ],
+        },
+    },
+    {
         "key": "pride",
         "label": "PRIDE",
         "topic": DISPLAY_TOPIC,

@@ -121,6 +121,11 @@ It listens on port 5000. Configuration is by environment variable:
 | `UNIFI_API_KEY`, or `UNIFI_USER` and `UNIFI_PASSWD` | UniFi gateway login for the external network view; leave unset to disable it | |
 | `UNIFI_HOST`, `UNIFI_SITE` | UniFi gateway address and site | `192.168.1.1`, `default` |
 | `UNIFI_CA_FILE` | CA bundle for the gateway's certificate (TLS isn't verified without it) | |
+| `PRESENCE_FILE` | People and their devices for family presence (needs the UniFi settings) | `manager/presence.json` |
+| `DEFCON_INTERVAL_SECONDS` | How often the DEFCON level is sent to the displays | `30` |
+| `DEFCON_MIN_LEVEL` | Lowest level the manager will set | `2` |
+| `DEFCON_SLOW_LATENCY_MS` | Internet or cloud latency that counts as slow WAN | `80` |
+| `DEFCON_SLOW_DOWN_MBPS`, `DEFCON_SLOW_UP_MBPS` | ISP speed test results below which the WAN counts as slow | `250`, `25` |
 | `WAN_PING_TARGETS` | Hosts to ping if the gateway's own latency monitors can't be read | Google, Microsoft, 1.1.1.1, AWS |
 
 Run it detached from a terminal (for example as a systemd service, or with `nohup ... > manager.log 2>&1`).
@@ -143,6 +148,7 @@ Each tile is available as a PNG for viewing and as BRG565 for the displays:
 | Ping: ICMP and MQTT round trip, all nodes | `/32x32/ping.png` | `/32x32/ping.brg565` |
 | Ping: one node, with 24h ICMP trend | `/32x32/ping/<node>.png` | `/32x32/ping/<node>.brg565` |
 | External network: ISP speed, cloud latency, 24h WAN traffic | `/32x32/wan.png` | `/32x32/wan.brg565` |
+| Family presence: who is home and who is away | `/32x32/presence.png` | `/32x32/presence.brg565` |
 
 The calendar tile accepts `?date=dd/mm/yyyy` to preview any day, e.g. `/32x32/cal.png?date=25/12/2026`.
 
@@ -231,16 +237,96 @@ The `wan` tile shows:
 The download and upload figures are drawn in the same colours as their trend lines. The tile returns
 `503` until the gateway has been read. `/wan` returns the data as JSON.
 
+### Family presence
+The manager can show who is home, based on whose phone is connected to the UniFi network. List the
+people and their devices in *manager/presence.json*. That file is in `.gitignore` because it holds
+device MACs; *manager/presence.example.json* shows the format:
+
+```json
+{
+  "grace_minutes": 3,
+  "people": [
+    {"name": "Jon", "letter": "J", "macs": ["aa:bb:cc:dd:ee:01"], "client_names": ["Jons-Phone"]}
+  ]
+}
+```
+
+- Every minute the manager reads the gateway's connected clients (`stat/sta`). A person is home while
+  any of their devices is connected, matched by MAC or by its name in the UniFi console. The name match
+  catches a phone that has switched to a randomised ("private") Wi-Fi MAC.
+- Phones drop off Wi-Fi for a while when idle, so a person only counts as away once none of their
+  devices has been seen for `grace_minutes` (3 by default). Their "away since" time is when they were
+  last seen.
+- At start-up, each person's last-seen time comes from the gateway's client records (`stat/user`), so
+  someone who left shortly before a restart isn't marked away straight away.
+- *exp/Unifi/clientPresence.py* checks a single device from the command line (`--mac`, `--name`,
+  `--watch`). It's useful for finding a phone's MAC and console name, and for seeing how quickly the
+  gateway notices a phone has left.
+
+The `presence` tile is split down the middle: home on the left under a house icon, away on the right
+under a pine tree. Each person's initial is drawn at double size on the side they're on, in their own
+colour (in the order they're listed): full brightness when home, dimmed when away, and grey before the
+first reading. Each side has room for four people. `/presence` returns the data as JSON.
+
+The tile is shown on the displays every 10 minutes, at :02, :12 ... :52. These minutes aren't used by
+any other announcement or by the network sweep. When someone changes from away to home, the manager
+immediately sends the tile with a scrolling message, "Jon is home", or "Jon and Kevin are home" if they
+arrive in the same minute:
+
+```json
+{"layout": "layout2", "widgets": [{"type": "img", "data": "presence.brg565"}, {"type": "txt", "data": "Jon is home"}]}
+```
+
+There's no message at start-up, when someone leaves, or when a phone briefly drops off Wi-Fi within the
+grace period.
+
+### DEFCON status
+The displays show a DEFCON level from 5 (all well) down to 1. The manager keeps one central level and
+sends `{"defcon": <level>}` to `drjonea/display` every 30 seconds. The level starts at 5 and current
+issues move it down:
+
+| Issue | Effect |
+|---|---|
+| Each person away (family presence), e.g. Jon or Kevin out | down 1 each |
+| Slow WAN: internet or cloud latency at or above `DEFCON_SLOW_LATENCY_MS`, a cloud target not replying, or the last ISP speed test below `DEFCON_SLOW_DOWN_MBPS` / `DEFCON_SLOW_UP_MBPS` | down 1, however many signs |
+| WAN problem: the gateway reports the WAN or internet status as not `ok`, or no cloud target replies | straight to 2 |
+
+- The level never goes below `DEFCON_MIN_LEVEL`, which is 2 for now. Level 1 is reserved.
+- People with no devices configured aren't counted.
+- Missing data (presence or WAN not read yet, or the gateway unreachable) is listed as a reason but
+  doesn't change the level, because the manager can't tell a problem from a gap in what it can see.
+- Sending pauses while a network sweep runs. Every display command restarts the firmware's 10-second
+  wait before its sensor report, and the speed tests wait for that report.
+
+`/defcon` returns the level, the reasons for it, and when it was last sent.
+
 ### Schedule
 A background scheduler refreshes data and re-announces display presets on fixed minutes past the hour:
 weather every 15 minutes, forecast every 30, and the calendar preset hourly. Every minute it publishes
 `{"tz": <UTC offset in minutes>, "blue": <bool>}` to `drjonea/display`, so the displays keep local time
 across daylight saving changes; `blue` is true during the night window (20:00 to 05:00 local).
 
+| Minutes past the hour | Job |
+|---|---|
+| :00 | Calendar preset |
+| :01, :06 ... :56 | Forecast preset |
+| :02, :12 ... :52 | Family presence preset (if set up) |
+| :03, :18, :33, :48 | Solar preset |
+| :04, :09 ... :59 | External network read from the UniFi gateway (if set up) |
+| :05, :10 ... :55 | Weather preset |
+| :07, :17 ... :57 | Network sweep |
+| every minute | Clock offset; family presence check (if set up) |
+| every 30 seconds | DEFCON level (paused during the network sweep) |
+
 ### Web dashboard
-`http://<server>:5000/` shows the uplink status, the active widgets, all tiles, the sensor nodes with
-their latest readings and tiles, the network sweep results, and preset and console controls for
-publishing commands.
+`http://<server>:5000/` shows, from top to bottom: the uplink status, the DEFCON status, today's calendar
+theme, the active widgets, all tiles, the sensor nodes, family presence (Who's Home), the external
+network, the network sweep results, and controls for publishing commands. The links across the top jump
+to each panel.
+
+**Quick Commands** has one button per display preset, each sending its tile to the displays: WEATHER,
+FORECAST, SOLAR, CALENDAR, SENSORS (`env`), NETWORK (`net`), PING, WAN, PRESENCE and PRIDE. The
+**Command Console** publishes any payload to any topic.
 
 The **Network Tests** panel shows whether a sweep is running and which stage it is on, when the last one
 ran, and when the next is due. For the latest run it lists each node's MQTT ping (median, min-max,
@@ -249,6 +335,14 @@ plus any problems such as ICMP being unavailable. Below that is a summary of the
 **SPEED TESTS** re-runs just the speed tests and **FULL SWEEP** runs all three stages. While a run is in
 progress the panel refreshes every two seconds. The same data is available as JSON from
 `/network-sweep`.
+
+The **DEFCON Status** panel shows the current level and each reason for it with its effect, when the
+level last changed, when it was last sent, and whether sending is paused for a network test.
+
+The **Who's Home** panel shows the `presence` tile and, for each person, home or away, since when,
+when they were last seen, and their connected devices (name, IP, network and signal). People with no
+devices configured are flagged, and the last arrival message sent is shown. **REFRESH NOW** reads the
+gateway straight away.
 
 The **External Network** panel shows the `wan` tile, ISP and WAN IP, the last speed test, internet
 latency, uptime and drops, current traffic, and when the data was read. It also has a table of cloud
@@ -338,6 +432,17 @@ Relative to topic <ORG> which can be set as a parameter. Defaults to drjonea
 - drjonea/display/cosmic
 - drjonea/display
 - drjonea/sensor/cosmic/<clientid>
+
+Display commands are JSON objects sent on a display topic. The keys can be combined:
+
+| Key | Example | Effect |
+|---|---|---|
+| `layout`, `widgets` | `{"layout": "layout2", "widgets": [{"type": "img", "data": "weather.brg565"}, {"type": "txt", "data": "Jon is home"}, {"type": "clock"}]}` | Show a tile fetched from `<httpConn>/32x32/<data>`, with optional scrolling text and clock overlay |
+| `defcon` | `{"defcon": 4}` | Set the DEFCON level, 1 to 5 |
+| `tz` | `{"tz": 60}` | Set the UTC offset in minutes |
+| `blue` | `{"blue": true}` | Night-time blue mode |
+| `brightness` | `{"brightness": 0.5}` | Set the brightness, 0.0 to 1.0 |
+| `speedtest` | `{"speedtest": true}` | Run the upload speed test (see [Network speed test](#network-speed-test)) |
 
 TwinThing topics used for ping (not under <ORG>):
 
