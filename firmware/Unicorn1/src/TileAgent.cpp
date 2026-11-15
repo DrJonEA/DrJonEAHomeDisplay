@@ -90,14 +90,19 @@ void TileAgent::run(){
 			last = to_ms_since_boot (get_absolute_time());
 		}
 
+		int pos = 0;
 		int count = stdio_get_until (pBuffer, REQ_BUFFER,  make_timeout_time_ms(100));
-		int pos = count;
 		while (count > 0){
-			count = stdio_get_until (&pBuffer[pos], REQ_BUFFER - pos,  make_timeout_time_ms(100));
 			pos += count;
+			if (pos >= REQ_BUFFER){
+				break;
+			}
+			count = stdio_get_until (&pBuffer[pos], REQ_BUFFER - pos,  make_timeout_time_ms(100));
 		}
 		if (pos > 0){
-			pos++;
+			if (pos > REQ_BUFFER){
+				pos = REQ_BUFFER;
+			}
 			pBuffer[pos] = 0;
 			printf("Have Config(%d): %s\n", pos, pBuffer);
 			processConfig();
@@ -342,11 +347,12 @@ void TileAgent::processConfig(){
 
 	item = json_getProperty( json, "reboot" );
 	if (item ){
-		 taskENTER_CRITICAL(  );
-		 for (;;){
-			 // For reboot by holding processor
-		 }
-		 taskEXIT_CRITICAL(  );
+		printf("Rebooting\n");
+		vTaskDelay(100);
+		watchdog_reboot(0, 0, 0);
+		for (;;){
+			// Wait for reboot
+		}
 	}
 }
 
@@ -387,7 +393,7 @@ void TileAgent::sendSensors(){
 	
 
 	s = json_objClose( s , &rem );
-	s = json_objClose(s, &rem);
+	s = json_end( s, &rem );
 
 	pInterface->pubToTopic(
 			pPubTopic,

@@ -166,7 +166,7 @@ int DeviceState::getMQTTport(){
 }
 void DeviceState::setMQTTport(int p){
 	NVSOnboard *nvs = NVSOnboard::getInstance();
-	nvs->set_i32 ( DEV_TS , p);
+	nvs->set_i32 ( DEV_MQTT_PORT , p);
 }
 
 char * DeviceState::getTopicOrg(){
@@ -300,7 +300,7 @@ char* DeviceState::jsonWifiRSSI(char *buf, unsigned int len){
 		printf("jsonWifiRSSI %d\n", rssi);
 		p = json_int( p, WIFI_RSSI, rssi, &l);
 	} else {
-		printf("jsonWifiRSSI fail\n", rssi);
+		printf("jsonWifiRSSI fail\n");
 		p = json_int( p, WIFI_RSSI, 0, &l);
 	}
 	return p;

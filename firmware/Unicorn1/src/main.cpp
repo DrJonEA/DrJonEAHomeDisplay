@@ -137,6 +137,31 @@ void runTimeStats(   ){
 }
 
 
+/***
+ * Connect to the AP using credentials held in NVS
+ */
+void wifiConnect(){
+	DeviceState *ds = DeviceState::singleton();
+	int r = -1;
+	while (r != 0){
+		printf("Connecting to WiFi... %s \n", ds->getSSID());
+		r = cyw43_arch_wifi_connect_timeout_ms(
+				ds->getSSID(),
+				ds->getSSIDpwd(),
+				CYW43_AUTH_WPA2_AES_PSK,
+				60000);
+		printf("Connect r %d\n", r);
+		if (r){
+			printf("Failed to join AP.\n");
+			ds->WifiOffline();
+			vTaskDelay(2000);
+		} else {
+			ds->WifiOnline();
+		}
+	}
+}
+
+
 bool doReboot = false;
 void main_task(void *params){
 
@@ -158,21 +183,9 @@ void main_task(void *params){
 	cyw43_wifi_pm(&cyw43_state ,CYW43_NONE_PM);
 
 	cyw43_arch_enable_sta_mode();
-	printf("Connecting to WiFi... %s \n",  DeviceState::singleton()->getSSID()); //WIFI_SSID);
 
 	//Loop trying to connect to Wifi
-	int r =-1;
-	while (r < 0){
-		r = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 60000);
-		printf("Connect r %d\n", r);
-		if (r){
-			printf("Failed to join AP.\n");
-			DeviceState::singleton()->WifiOffline();
-			 vTaskDelay(2000);
-		} else {
-			DeviceState::singleton()->WifiOnline();
-		}
-	}
+	wifiConnect();
 
 	//Print IP Address
 	char ipStr[20];
@@ -264,7 +277,7 @@ void main_task(void *params){
 			printf("jsonWifiRSSI %d\n", rssi);
 			DeviceState::singleton()->setRSSI(rssi);
 		} else {
-			printf("jsonWifiRSSI fail\n", rssi);
+			printf("jsonWifiRSSI fail\n");
 			DeviceState::singleton()->setRSSI(0);
 		}
 
@@ -278,14 +291,7 @@ void main_task(void *params){
         if (cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) < 0){
         	DeviceState::singleton()->WifiOffline();
         	printf("AP Link is down\n");
-        	while (r < 0){
-				r = cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 60000);
-				printf("Connect r %d\n", r);
-				if (r){
-					printf("Failed to join AP.\n");
-					 vTaskDelay(2000);
-				}
-			}
+        	wifiConnect();
         }
 
         if (cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA) >= 0){

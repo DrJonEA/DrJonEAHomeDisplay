@@ -54,7 +54,7 @@ private:
 	void changeTimezone(int minOffset);
 
 	// Temporaty storage buffer so we can null terminate the string
-	char pBuffer[REQ_BUFFER];
+	char pBuffer[REQ_BUFFER + 1];
 
 	// Json decoding buffer
 	json_t pJsonPool[ REQ_JSON_POOL ];
