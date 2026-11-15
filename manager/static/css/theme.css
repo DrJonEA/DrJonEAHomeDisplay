@@ -392,3 +392,120 @@ button.preset-btn:hover {
   flex: 1;
   min-width: 240px;
 }
+
+/* Sensor groups */
+.group-row {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.group-tiles {
+  flex: 1;
+  min-width: 260px;
+}
+.tile-empty img {
+  visibility: hidden;
+}
+button.preset-btn.small-btn {
+  width: auto;
+  margin-top: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.6rem;
+}
+
+/* DEFCON manual buttons */
+.defcon-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+.defcon-buttons .status-label {
+  margin: 0 0.5rem 0 0;
+}
+button.defcon-btn {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  background: transparent;
+  border: 2px solid currentColor;
+  cursor: pointer;
+  opacity: 0.55;
+}
+button.defcon-btn:hover,
+button.defcon-btn.current {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Calendar look-ahead */
+.calendar-ahead {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
+}
+.calendar-ahead form {
+  margin: 0;
+}
+button.tile-button {
+  width: 100%;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+button.tile-button:hover,
+button.tile-button.shown {
+  border-color: var(--holo-blue);
+  background: rgba(79, 216, 255, 0.12);
+}
+.calendar-ahead .tile-card span.calendar-rule {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Clickable tiles: click to send to the displays */
+img[data-tile] {
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+img[data-tile]:hover,
+img[data-tile]:focus-visible {
+  outline: none;
+  border-color: var(--holo-blue);
+  box-shadow: 0 0 8px rgba(79, 216, 255, 0.7);
+}
+img[data-tile].sending {
+  opacity: 0.5;
+}
+.tile-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%) translateY(1rem);
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem 1rem;
+  background: var(--panel-raised);
+  border: 1px solid var(--holo-blue);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 10;
+}
+.tile-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.tile-toast.error {
+  border-color: var(--alert-red);
+  color: var(--alert-red);
+}

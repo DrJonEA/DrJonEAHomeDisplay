@@ -164,24 +164,31 @@ class NetworkSweep:
             runs = list(self._runs)
         return [r.as_dict() for r in reversed(runs)]
 
-    def start(self, stages=STAGES, trigger="schedule"):
-        """Kick off a sweep in the background. Returns False if one is already running."""
+    def start(self, stages=STAGES, trigger="schedule", group=None, node=None):
+        """Kick off a sweep in the background, optionally limited to one sensor group or one node.
+        Returns False if one is already running."""
         stages = tuple(s for s in STAGES if s in stages)
         with self._lock:
             if self.running:
                 logging.warning("Network sweep still running; not starting a %s run", trigger)
                 return False
             self._thread = threading.Thread(
-                target=self.run, args=(stages, trigger), name="network-sweep", daemon=True)
+                target=self.run, args=(stages, trigger, group, node), name="network-sweep", daemon=True)
             self._thread.start()
             return True
 
-    def run(self, stages=STAGES, trigger="schedule"):
+    def run(self, stages=STAGES, trigger="schedule", group=None, node=None):
         """One sweep (blocking)."""
         nodes = [n for n in self.sensor_store.snapshot(since=time.time())["nodes"] if not n["stale"]]
+        if group:
+            nodes = [n for n in nodes if n.get("group") == group]
+        if node:
+            nodes = [n for n in nodes if n["id"] == node]
+        scope = "node %s" % node if node else ("group %s" % group if group else "all nodes")
         with self._lock:
             self._run_seq += 1
             run = SweepRun(self._run_seq, trigger, stages, nodes)
+            run.update(lambda d: d.update(scope=scope))
             self._runs = (self._runs + [run])[-HISTORY_RUNS:]
         try:
             if not nodes:
@@ -298,6 +305,26 @@ class NetworkSweep:
 
     # --- 3. Speed tests -----------------------------------------------------------------
 
+    def _wait_for_result(self, node_id, sent_at, before):
+        """Wait for the report carrying this test's result.
+
+        Sensor nodes report straight after the test, so a report whose mbps has changed is taken
+        at once. Otherwise only a report from MIN_REPORT_DELAY_SECONDS after the command counts:
+        an earlier one with an unchanged value may have been in flight before the test ran
+        (displays report ~10s after a command)."""
+        deadline = sent_at + self.report_timeout
+        after = sent_at
+        while True:
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                return None
+            latest, seen = self.sensor_store.wait_for_report(node_id, after, remaining)
+            if latest is None:
+                return None
+            if latest.get("mbps") != before or seen >= sent_at + MIN_REPORT_DELAY_SECONDS:
+                return latest
+            after = seen
+
     @staticmethod
     def _speed(status, topic=None, mbps=None, elapsed=None):
         return {"status": status, "topic": topic, "mbps": mbps, "elapsed": elapsed}
@@ -316,9 +343,9 @@ class NetworkSweep:
             run.update(lambda d, n=node["id"]: d.update(current="Speed test: %s" % n))
             run.node(node["id"], "speed", self._speed("testing", topic))
             sent_at = time.time()
+            before = node["latest"].get("mbps")
             self.mqtt_service.publish(topic, SPEEDTEST_PAYLOAD)
-            latest = self.sensor_store.wait_for_report(
-                node["id"], sent_at + MIN_REPORT_DELAY_SECONDS, self.report_timeout)
+            latest = self._wait_for_result(node["id"], sent_at, before)
             mbps = latest.get("mbps") if latest else None
             elapsed = time.time() - sent_at
             if latest is None:

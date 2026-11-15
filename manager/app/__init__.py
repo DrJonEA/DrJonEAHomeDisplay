@@ -123,6 +123,9 @@ def create_app(config=None):
             app.presence_error = "No people file at %s" % config.PRESENCE_FILE
     else:
         app.presence_error = "Needs the UniFi settings (UNIFI_API_KEY, or UNIFI_USER and UNIFI_PASSWD)"
+        if os.path.exists(config.PRESENCE_FILE):
+            logging.warning("Family presence: %s exists but the UniFi settings aren't in this process's "
+                            "environment, so presence and the external network view are off", config.PRESENCE_FILE)
     # Future sources (sunrise/sunset, moonrise/moonset) register here the same way.
     app.scheduler = scheduler
 

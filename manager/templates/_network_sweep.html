@@ -42,7 +42,7 @@
   </ul>
   {% endif %}
 
-  <h3 class="sweep-heading">Run #{{ sweep_last.id }} &middot; {{ sweep_last.stage_text }}</h3>
+  <h3 class="sweep-heading">Run #{{ sweep_last.id }} &middot; {{ sweep_last.stage_text }} &middot; {{ sweep_last.scope or 'all nodes' }}</h3>
   {% if sweep_last.nodes %}
   <table class="widgets sweep-table">
     <thead>
@@ -96,7 +96,7 @@
   <h3 class="sweep-heading">Earlier runs</h3>
   <table class="widgets sweep-table">
     <thead>
-      <tr><th>#</th><th>Started</th><th>Trigger</th><th>Stages</th><th>Time s</th><th>Status</th><th>Mbps</th></tr>
+      <tr><th>#</th><th>Started</th><th>Trigger</th><th>Scope</th><th>Stages</th><th>Time s</th><th>Status</th><th>Mbps</th></tr>
     </thead>
     <tbody>
       {% for run in sweep_runs[1:] %}
@@ -104,6 +104,7 @@
         <td>{{ run.id }}</td>
         <td>{{ fmt_time(run.started) }}</td>
         <td>{{ run.trigger }}</td>
+        <td>{{ run.scope or 'all nodes' }}</td>
         <td>{{ run.stage_text }}</td>
         <td>{{ '%.0f' % (run.finished - run.started) if run.finished else '-' }}</td>
         <td class="{{ 'warn-text' if run.status not in ('done', 'running') }}">{{ run.status }}</td>

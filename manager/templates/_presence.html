@@ -1,13 +1,19 @@
 {# Family Presence panel body. Context from routes/presence.py. #}
 {% if not presence_enabled %}
-  <p class="status-value">Not set up: {{ presence_setup_error }}. Copy <code>manager/presence.example.json</code>
-  to <code>manager/presence.json</code> and list each person's phone MAC and/or UniFi client name.</p>
+  <p class="status-value">Not set up: {{ presence_setup_error }}.
+  {% if 'UniFi' in presence_setup_error %}
+  Set these in the environment the manager runs in (not just your shell), then restart it. The
+  External Network panel needs the same settings.
+  {% else %}
+  Copy <code>manager/presence.example.json</code> to <code>manager/presence.json</code> and list each
+  person's phone MAC and/or UniFi client name.
+  {% endif %}</p>
 {% elif not presence %}
   <p class="status-value warn">{{ presence_error or 'Waiting for the first read from the gateway.' }}</p>
 {% else %}
   <div class="calendar-today">
     <div class="tile-card">
-      <img src="{{ url_for('images.presence_tile', fmt='png') }}" alt="family presence tile" />
+      <img data-tile="presence.brg565" src="{{ url_for('images.presence_tile', fmt='png') }}" alt="family presence tile" />
       <span>PRESENCE (presence.brg565)</span>
     </div>
     <div class="calendar-details">

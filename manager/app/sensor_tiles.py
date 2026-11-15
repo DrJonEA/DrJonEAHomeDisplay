@@ -15,7 +15,14 @@ from .images import TILE_SIZE
 ROW_HEIGHT = 8
 MAX_ROWS = TILE_SIZE // ROW_HEIGHT
 STRIPE_WIDTH = 2
-TEXT_X = STRIPE_WIDTH + 1
+# Overview rows: stripe (x0-1) | node letter (x3-5) | values from x7.
+LETTER_X = STRIPE_WIDTH + 1
+VALUE_X = LETTER_X + 4
+MIN_VALUE_GAP = 2           # between a row's left and right-aligned values
+
+
+def _fits(left_text, right_text):
+    return VALUE_X + text_width(left_text) + MIN_VALUE_GAP + text_width(right_text) <= 32
 TREND_TOP = 21          # detail tiles: trend line occupies rows 21..31
 TREND_SECONDS = 24 * 60 * 60
 
@@ -30,7 +37,8 @@ TEXT_COLOR = (255, 255, 255)
 SIGNAL_OFF_COLOR = (40, 40, 40)
 TREND_NET_COLOR = (0, 200, 255)
 # Net tiles: ping blocks sit between the Mbps figure (ends by x=14) and the signal bars (x=25).
-PING_BLOCKS_X = 16
+PING_BLOCKS_X = 16          # net node tile
+NET_ROW_BLOCKS_X = 19       # net overview rows: narrower blocks between Mbps and signal bars
 PING_METRICS = ("icmp_ms", "icmp_loss", "mqtt_ms", "mqtt_loss")
 
 # 3x5 glyphs, one string of 3 bits per row ('.' is a single column).
@@ -195,11 +203,12 @@ def _icmp_color(node):
     return _probe_color(node, "icmp")
 
 
-def _draw_ping_blocks(pixels, node, x0, y0, dim):
-    """Ping summary: two 3x5 blocks, ICMP then MQTT, coloured by latency (dark when unmeasured)."""
+def _draw_ping_blocks(pixels, node, x0, y0, dim, width=3):
+    """Ping summary: two blocks (width x 5), ICMP then MQTT, coloured by latency (dark when unmeasured)."""
     for i, kind in enumerate(("icmp", "mqtt")):
         color = _dim(_probe_color(node, kind, unmeasured=SIGNAL_OFF_COLOR), dim)
-        for x in range(x0 + i * 4, x0 + i * 4 + 3):
+        start = x0 + i * (width + 1)
+        for x in range(start, start + width):
             for y in range(y0, y0 + GLYPH_HEIGHT):
                 pixels[x, y] = color
 
@@ -214,6 +223,18 @@ def _overview_nodes(snapshot, metrics):
     nodes = [n for n in snapshot["nodes"] if any(m in n["latest"] for m in metrics)]
     nodes.sort(key=lambda n: (n["stale"], n["slot"]))
     return nodes[:MAX_ROWS]
+
+
+def node_letter(node):
+    """First letter of the node's name, for the overview rows ("?" if the font has no glyph)."""
+    ch = (node["id"][:1] or "?").upper()
+    return ch if ch in _GLYPHS else "?"
+
+
+def _draw_row_label(pixels, node, y0):
+    """Stripe plus the node's initial, both in the node's colour (dimmed when stale)."""
+    _draw_stripe(pixels, node, y0)
+    draw_text(pixels, LETTER_X, y0 + 1, node_letter(node), _node_color(node))
 
 
 def _draw_stripe(pixels, node, y0):
@@ -276,33 +297,36 @@ def _new_tile():
 
 
 def generate_env_overview(snapshot):
-    """Rows of: node stripe | temperature C (coloured) | humidity % (coloured, right-aligned)."""
+    """Rows of: stripe + node letter | temperature C (coloured) | humidity % (coloured, right-aligned)."""
     img, pixels = _new_tile()
     for row, node in enumerate(_overview_nodes(snapshot, ("temperature", "humidity"))):
         y0 = row * ROW_HEIGHT
-        _draw_stripe(pixels, node, y0)
+        _draw_row_label(pixels, node, y0)
         dim = STALE_DIM if node["stale"] else 1.0
         temp = node["latest"].get("temperature")
         hum = node["latest"].get("humidity")
-        draw_text(pixels, TEXT_X, y0 + 1, _fmt_temp(temp),
-                  _dim(temperature_color(temp) if temp is not None else MISSING_COLOR, dim))
         hum_text = _fmt_hum(hum)
+        temp_text = _fmt_temp(temp)
+        if temp is not None and not _fits(temp_text, hum_text):
+            temp_text = "%d" % round(temp)          # e.g. -12.5 -> -13 to leave a gap
+        draw_text(pixels, VALUE_X, y0 + 1, temp_text,
+                  _dim(temperature_color(temp) if temp is not None else MISSING_COLOR, dim))
         draw_text(pixels, TILE_SIZE - text_width(hum_text), y0 + 1, hum_text,
                   _dim(humidity_color(hum) if hum is not None else MISSING_COLOR, dim))
     return img
 
 
 def generate_net_overview(snapshot):
-    """Rows of: node stripe | Mbps | ping blocks (ICMP, MQTT) | WiFi signal bars."""
+    """Rows of: stripe + node letter | Mbps | ping blocks (ICMP, MQTT) | WiFi signal bars."""
     img, pixels = _new_tile()
     for row, node in enumerate(_overview_nodes(snapshot, ("mbps", "rssi"))):
         y0 = row * ROW_HEIGHT
-        _draw_stripe(pixels, node, y0)
+        _draw_row_label(pixels, node, y0)
         dim = STALE_DIM if node["stale"] else 1.0
         mbps = node["latest"].get("mbps")
-        draw_text(pixels, TEXT_X, y0 + 1, _fmt_mbps(mbps),
+        draw_text(pixels, VALUE_X, y0 + 1, _fmt_mbps(mbps),
                   _dim(TEXT_COLOR if mbps is not None else MISSING_COLOR, dim))
-        _draw_ping_blocks(pixels, node, PING_BLOCKS_X, y0 + 1, dim)
+        _draw_ping_blocks(pixels, node, NET_ROW_BLOCKS_X, y0 + 1, dim, width=2)
         _draw_signal(pixels, TILE_SIZE - 7, y0 + ROW_HEIGHT - 2,
                      None if node["stale"] else node["latest"].get("rssi"))
     return img
@@ -351,16 +375,22 @@ def generate_net_detail(snapshot, node_id, now=None):
 
 
 def generate_ping_overview(snapshot):
-    """Rows of: node stripe | ICMP ms (left) | MQTT ms (right), each coloured by latency."""
+    """Rows of: stripe + node letter | ICMP ms (left) | MQTT ms (right), each coloured by latency."""
     img, pixels = _new_tile()
     for row, node in enumerate(_overview_nodes(snapshot, PING_METRICS)):
         y0 = row * ROW_HEIGHT
-        _draw_stripe(pixels, node, y0)
+        _draw_row_label(pixels, node, y0)
         dim = STALE_DIM if node["stale"] else 1.0
         icmp = node["latest"].get("icmp_ms")
         mqtt = node["latest"].get("mqtt_ms")
-        draw_text(pixels, TEXT_X, y0 + 1, _fmt_ms(icmp), _dim(_icmp_color(node), dim))
+        icmp_text = _fmt_ms(icmp)
+        draw_text(pixels, VALUE_X, y0 + 1, icmp_text, _dim(_icmp_color(node), dim))
         mqtt_text = _fmt_ms(mqtt, cap=9999)
+        # Only when both are long: MQTT in seconds, "1.4S" then "1S", to keep a gap.
+        for shorter in (lambda: "%.1fS" % min(mqtt / 1000, 9.9), lambda: "%dS" % min(round(mqtt / 1000), 9)):
+            if mqtt is None or _fits(icmp_text, mqtt_text):
+                break
+            mqtt_text = shorter()
         draw_text(pixels, TILE_SIZE - text_width(mqtt_text), y0 + 1, mqtt_text,
                   _dim(_probe_color(node, "mqtt"), dim))
     return img

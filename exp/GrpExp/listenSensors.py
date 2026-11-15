@@ -17,6 +17,7 @@ connected_topic = "TNG/" + user + "/LC/ON"
 disconnected_topic = "TNG/" + user + "/LC/OFF"
 
 sen_topic = "drjonea/sensor/#"
+all_topic = "drjonea/#"
 
 # The callback for when the client receives a CONNACK response from the server.
 def on_connect(client, userdata, flags, rc):
@@ -45,6 +46,7 @@ client.loop_start()
 
 
 client.subscribe( sen_topic )
+#client.subscribe( all_topic )
 
     
 print("publishing connect")
