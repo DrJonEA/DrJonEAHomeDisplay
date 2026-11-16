@@ -6,6 +6,7 @@ no template or route changes needed.
 import json
 
 DISPLAY_TOPIC = "drjonea/display"
+COSMIC_TOPIC = DISPLAY_TOPIC + "/cosmic"   # the Cosmic Unicorn displays only (not sensor nodes)
 
 PRESETS = [
     {

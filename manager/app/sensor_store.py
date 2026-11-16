@@ -20,6 +20,10 @@ ALL_METRICS = METRICS + PROBE_METRICS
 HISTORY_SECONDS = 24 * 60 * 60
 HISTORY_MAX_POINTS = 5000  # per node per metric; a backstop for chatty nodes
 STALE_SECONDS = 10 * 60
+# Plausible ranges; values outside are ignored. The firmware sends -100 for temperature and
+# humidity until its sensor gives a good reading (e.g. no AHT10 fitted).
+VALID_RANGES = {"temperature": (-40.0, 85.0), "humidity": (0.0, 100.0)}
+TOPIC_CLASH_SECONDS = 15 * 60
 
 
 def _parse_payload(raw):
@@ -46,6 +50,7 @@ class SensorStore:
         self._nodes = {}
         self._next_slot = 0
         self.version = 0
+        self.rejected = {}  # topic -> {"count", "last", "payload"}: messages that couldn't be read
         self._changed = threading.Condition(self._lock)
 
     def ingest(self, topic, raw_payload, now=None):
@@ -53,6 +58,10 @@ class SensorStore:
         now = time.time() if now is None else now
         data = _parse_payload(raw_payload)
         if data is None:
+            with self._lock:
+                entry = self.rejected.setdefault(topic, {"count": 0})
+                entry.update(count=entry["count"] + 1, last=now,
+                             payload=raw_payload[:200].decode(errors="replace"))
             return None
 
         parts = topic.split("/")
@@ -61,6 +70,9 @@ class SensorStore:
 
         readings = {m: _number(data.get(m)) for m in METRICS}
         readings = {m: v for m, v in readings.items() if v is not None}
+        for metric, (lo, hi) in VALID_RANGES.items():
+            if metric in readings and not lo <= readings[metric] <= hi:
+                del readings[metric]
 
         with self._lock:
             node = self._nodes.get(node_id)
@@ -76,6 +88,9 @@ class SensorStore:
                 }
                 self._next_slot += 1
                 self._nodes[node_id] = node
+            # Remember every topic this ID has published from recently: two topics at once
+            # usually means two devices provisioned with the same client ID, merged into one row.
+            node.setdefault("topics", {})[topic] = now
             node["group"] = group
             node["topic"] = topic
             node["last_seen"] = now
@@ -105,6 +120,8 @@ class SensorStore:
                     "id": node["id"],
                     "group": node["group"],
                     "topic": node["topic"],
+                    "topics": sorted(t for t, seen in node.get("topics", {}).items()
+                                     if now - seen <= TOPIC_CLASH_SECONDS),
                     "slot": node["slot"],
                     "ip": node["ip"],
                     "last_seen": node["last_seen"],
@@ -115,7 +132,8 @@ class SensorStore:
                         for m, pts in node["history"].items()
                     },
                 })
-            return {"now": now, "version": self.version, "nodes": nodes}
+            rejected = [dict(v, topic=t) for t, v in sorted(self.rejected.items())]
+            return {"now": now, "version": self.version, "nodes": nodes, "rejected": rejected}
 
     def record_probe(self, node_id, readings, ip=None, now=None):
         """Store manager-measured values (PROBE_METRICS) for a node already known from its sensor
@@ -143,7 +161,7 @@ class SensorStore:
     def wait_for_report(self, node_id, after, timeout):
         """Block until `node_id` sends a message timestamped after `after`, or `timeout` expires.
 
-        Returns the node's latest readings if it reported in time, else None.
+        Returns (latest readings, report time) if it reported in time, else (None, None).
         """
         def reported():
             node = self._nodes.get(node_id)
@@ -151,5 +169,6 @@ class SensorStore:
 
         with self._lock:
             if self._changed.wait_for(reported, timeout=timeout):
-                return dict(self._nodes[node_id]["latest"])
-            return None
+                node = self._nodes[node_id]
+                return dict(node["latest"]), node["last_seen"]
+            return None, None

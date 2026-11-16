@@ -87,6 +87,17 @@ update, alongside `wifiRSSI`, so you can compare speed and signal strength.
   `200`. It also runs the test on every display every 10 minutes (see [Network sweep](#network-sweep)).
 - The result also goes out in the display's next sensor report (see below), about 10 seconds later.
 
+### Stand-alone sensor
+*firmware/Sensor-Pico2W* is a display-less node, a Pico 2 W with a temperature and humidity sensor. It
+uses the same topics as the displays, so the Display Manager treats it like any other node:
+
+- It publishes `{"id", "temperature", "humidity", "mbps", "rssi"}` to `<ORG>/sensor/<group>/<client>`
+  every 10 seconds. The group defaults to `sensor`, and can be changed with `{"group": "..."}`.
+- It accepts `{"speedtest": true}` and `{"tz": n}` on `<ORG>/display`, `<ORG>/display/<group>` and
+  `<ORG>/display/<group>/<client>`. After a speed test it sends a report straight away with the new
+  `mbps`.
+- It joins the TwinThing `display` group, so it answers the manager's group ping with its IP address.
+
 ### Sensor reports and ping
 Ten seconds after it last handled a command (`TILE_TIME_MS` in *TileAgent.h*), a display publishes a
 sensor report to `<ORG>/sensor/<group>/<clientid>`:
@@ -141,7 +152,10 @@ It listens on port 5000. Configuration is by environment variable:
 | `WAN_PING_TARGETS` | Hosts to ping if the gateway's own latency monitors can't be read | Google, Microsoft, 1.1.1.1, AWS |
 
 Run it detached from a terminal (for example as a systemd service, or with `nohup ... > manager.log 2>&1`).
-All runtime output goes through `logging`.
+All runtime output goes through `logging`. The variables must be set in the environment the manager
+runs in, such as the service definition, not only in the shell where you run the *exp* scripts. For
+example, if the `UNIFI_*` settings are missing, the presence, external network and DEFCON WAN checks are
+off, and a warning is logged at start-up.
 
 ### Tiles
 Each tile is available as a PNG for viewing and as BRG565 for the displays:
@@ -159,23 +173,41 @@ Each tile is available as a PNG for viewing and as BRG565 for the displays:
 | Network: one node, with 24h trend | `/32x32/net/<node>.png` | `/32x32/net/<node>.brg565` |
 | Ping: ICMP and MQTT round trip, all nodes | `/32x32/ping.png` | `/32x32/ping.brg565` |
 | Ping: one node, with 24h ICMP trend | `/32x32/ping/<node>.png` | `/32x32/ping/<node>.brg565` |
+| Sensors, network or ping: one group's nodes | `/32x32/<env\|net\|ping>/group/<group>.png` | `/32x32/<env\|net\|ping>/group/<group>.brg565` |
 | External network: ISP speed, cloud latency, 24h WAN traffic | `/32x32/wan.png` | `/32x32/wan.brg565` |
 | Family presence: who is home and who is away | `/32x32/presence.png` | `/32x32/presence.brg565` |
 
 The calendar tile accepts `?date=dd/mm/yyyy` to preview any day, e.g. `/32x32/cal.png?date=25/12/2026`.
+`/32x32/cal/<yyyy-mm-dd>.png` and `.brg565` give a specific day as a plain path, which is what a display
+command uses, e.g. `{"type": "img", "data": "cal/2026-12-25.brg565"}`.
 
 ### Sensor nodes
 Nodes publish readings to `drjonea/sensor/<group>/<node>` as JSON, for example
 `{"id": "studycosmic", "temperature": 21.5, "humidity": 46.8, "mbps": 8.1, "rssi": -58}`. Every field
-is optional, and the node ID falls back to the last topic segment. The manager keeps each node's latest
+is optional, and the node ID falls back to the last topic segment. The manager subscribes to
+`drjonea/sensor/#`, so it picks up every group: the Cosmic Unicorn displays (`cosmic`), the stand-alone
+sensors (`sensor`, see [Stand-alone sensor](#stand-alone-sensor)) and any others. The overview tiles
+cover all groups, and `<kind>/group/<group>` shows just one group, so each group has room for its own
+four rows.
+
+- Nodes are keyed by their `id`, so every device needs its own MQTT client ID. If the same ID arrives
+  on two topics, the Sensor Nodes panel warns that two devices are probably sharing it and showing as
+  one node.
+- Messages that aren't valid JSON are listed in the panel with their topic, count and last payload,
+  instead of being dropped silently.
+- Temperatures outside -40 to 85 °C and humidity outside 0 to 100% are ignored. The sensor firmware
+  sends -100 until its sensor gives a good reading. The manager keeps each node's latest
 values and 24 hours of history in memory (lost on restart), and marks a node stale after 10 minutes
 without a message. `/sensors` returns the cache as JSON.
 
-- **Overview tiles** (`env`, `net`) show up to four nodes, one 8-pixel row each, starting with a stripe in
-  the node's colour. Nodes keep their colour in the order they were first seen. `env` shows temperature
+- **Overview tiles** (`env`, `net`, `ping`) show up to four nodes, one 8-pixel row each. Each row starts
+  with a stripe and the first letter of the node's name, both in the node's colour, e.g. S for
+  studycosmic. Nodes keep their colour in the order they were first seen. Two nodes with the same
+  initial are told apart by colour. When a row's two values wouldn't leave a gap, one is shortened: a
+  temperature loses its decimal (-12.5 shows as -12), and an MQTT time shows in seconds (1.4S, then 1S). `env` shows temperature
   (blue under 16 °C, cyan to 19, green to 24, yellow to 27, red above) and humidity % (orange under 30,
   cyan to 60, blue above). `net` shows Mbps, a ping summary and four WiFi signal bars (-55, -67, -75
-  and -85 dBm). The ping summary is two blocks, ICMP then MQTT, coloured by round trip (ICMP: green
+  and -85 dBm). The ping summary is two blocks (2 pixels wide on the overview, 3 on the node tile), ICMP then MQTT, coloured by round trip (ICMP: green
   under 50 ms, yellow under 200; MQTT: green under 500 ms, yellow under 1200, since it normally takes
   about 800 ms; red above, or when nothing replied; dark when not yet measured).
   Stale nodes are dimmed and listed last.
@@ -201,11 +233,13 @@ don't skew the figures) the manager measures each live sensor node in three stag
 3. **Speed test:** `{"speedtest": true}` to each node's own display topic, for example
    `drjonea/display/cosmic/studycosmic`, one node at a time. The sweep waits for the node's next sensor
    report (which carries the new `mbps`, about 10 seconds later) before testing the next node, so the
-   uploads never compete.
+   uploads never compete. A report whose `mbps` has changed is taken as the result straight away, as the
+   stand-alone sensors report right after their test. Otherwise only a report from 2 seconds after the
+   command counts, because an earlier one may already have been on its way.
 
 You can also start a sweep from the dashboard (see [Web dashboard](#web-dashboard)), or with
 `curl -X POST -d stages=speed http://<server>:5000/network-sweep/run` (`stages` is `all`, `speed` or
-`ping`). The pings run first, while the network is quiet. The sweep runs on its own thread, so it doesn't delay
+`ping`; add `-d group=sensor` or `-d node=<node>` to test one group or one node). The pings run first, while the network is quiet. The sweep runs on its own thread, so it doesn't delay
 the other scheduled jobs, and a sweep that is still running when the next slot comes round is skipped.
 The manager's MQTT account needs permission to publish to `GRP/display/TPC/PING` and the display
 topics, and to subscribe to `TNG/+/TPC/PONG`. If the broker refuses the pong subscription, the manager
@@ -331,10 +365,15 @@ across daylight saving changes; `blue` is true during the night window (20:00 to
 | every 30 seconds | DEFCON level (paused during the network sweep) |
 
 ### Web dashboard
-`http://<server>:5000/` shows, from top to bottom: the uplink status, the DEFCON status, today's calendar
-theme, the active widgets, all tiles, the sensor nodes, family presence (Who's Home), the external
+`http://<server>:5000/` shows, from top to bottom: the uplink status, the DEFCON status, Quick Commands,
+today's calendar theme, the active widgets, all tiles, the sensor nodes, family presence (Who's Home), the external
 network, the network sweep results, and controls for publishing commands. The links across the top jump
 to each panel.
+
+Click any tile image on the page to send that tile to the Cosmic displays (`drjonea/display/cosmic`).
+That covers the tile monitor, today's calendar, the sensor overview, group and node tiles, and the WAN
+and presence tiles. Calendar tiles are sent with the clock overlay. Tiles can also be selected with the
+keyboard (Tab, then Enter), and a short message confirms what was sent.
 
 **Quick Commands** has one button per display preset, each sending its tile to the displays: WEATHER,
 FORECAST, SOLAR, CALENDAR, SENSORS (`env`), NETWORK (`net`), PING, WAN, PRESENCE and PRIDE. The
@@ -349,7 +388,9 @@ progress the panel refreshes every two seconds. The same data is available as JS
 `/network-sweep`.
 
 The **DEFCON Status** panel shows the current level and each reason for it with its effect, when the
-level last changed, when it was last sent, and whether sending is paused for a network test.
+level last changed, when it was last sent, and whether sending is paused for a network test. Buttons 5 to
+1 send that level to the displays straight away. The panel notes it was set manually, and the next
+automatic update, within 30 seconds, replaces it.
 
 The **Who's Home** panel shows the `presence` tile and, for each person, home or away, since when,
 when they were last seen, and their connected devices (name, IP, network and signal). People with no
@@ -361,11 +402,17 @@ latency, uptime and drops, current traffic, and when the data was read. It also 
 latencies with their source, 24-hour throughput totals, averages and peaks, a per-day table for the last
 7 days, and the last 10 speed tests. **REFRESH NOW** reads the gateway straight away.
 
-The **Sensor Nodes** panel shows the `env`, `net` and `ping` overview tiles, and a table of every node
-with its group, latest readings (temperature, humidity, Mbps, RSSI, ICMP and MQTT times, packet loss), IP
-address, how long ago it reported, and previews of its node tiles. Stale nodes are greyed out.
+The **Sensor Nodes** panel shows the `env`, `net` and `ping` overview tiles for all nodes, then a section
+per group. Each group section has its own three tiles, each with a **SHOW ON DISPLAYS** button that sends
+it to the displays, plus **SPEED TEST GROUP** and **FULL SWEEP GROUP** buttons. Below that is a table of
+every node with its group, latest readings (temperature, humidity, Mbps, RSSI, ICMP and MQTT times,
+packet loss), IP address, how long ago it reported, previews of its node tiles, and a **SPEED TEST**
+button for that node alone. Stale nodes are greyed out. The Network Tests panel shows each run's scope:
+all nodes, one group, or one node.
 
-The **Today's Calendar Theme** panel shows today's date and tile, the
+The **Today's Calendar Theme** panel ends with a row of tiles for the next six days, each with its
+theme. Clicking one sends that day's tile, with the clock, to the Cosmic displays
+(`drjonea/display/cosmic`). The **Today's Calendar Theme** panel also shows today's date and tile, the
 theme's description, the set it came from, the rule that chose it, and any other themes that also match
 today but were outranked.
 

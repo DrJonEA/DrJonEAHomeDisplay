@@ -118,12 +118,12 @@ def create_images_blueprint(scheduler, config, sensor_store):
         except Exception as exc:
             return Response(str(exc), status=500)
 
-    def _calendar_image():
-        """Render today's calendar tile, or the date given as ?date=dd/mm/yyyy (for previewing themes)."""
+    def _calendar_image(day=None):
+        """Render the calendar tile for `day`, else ?date=dd/mm/yyyy (for previewing themes), else today."""
         requested = request.args.get("date")
-        if requested:
+        if day is None and requested:
             day = datetime.strptime(requested, "%d/%m/%Y").date()
-        else:
+        elif day is None:
             day = datetime.now(ZoneInfo(config.DISPLAY_TIMEZONE)).date()
         theme = calendar_themes.resolve_theme(
             calendar_themes.load_collections(config.CALENDAR_THEMES_DIR),
@@ -153,6 +153,20 @@ def create_images_blueprint(scheduler, config, sensor_store):
         except Exception as exc:
             return Response(str(exc), status=500)
 
+    # A given day's calendar tile, e.g. cal/2026-11-16.brg565: a path rather than ?date=, because the
+    # displays fetch <server>/32x32/<widget data> as-is.
+    @bp.route("/32x32/cal/<day>.<any(brg565, png):fmt>")
+    def cal_day(day, fmt):
+        try:
+            img = _calendar_image(datetime.strptime(day, "%Y-%m-%d").date())
+        except ValueError as exc:
+            return Response(str(exc), status=400)
+        except Exception as exc:
+            return Response(str(exc), status=500)
+        if fmt == "png":
+            return _png_response(img)
+        return _brg565_response(*images.convert_to_brg565(img))
+
     # Sensor node tiles. Overviews list up to 4 nodes; the per-node variants add a 24h trend.
     # The firmware fetches <server>/32x32/<widget data>, so e.g. data "env/studycosmic.brg565".
     _SENSOR_OVERVIEWS = {
@@ -166,9 +180,11 @@ def create_images_blueprint(scheduler, config, sensor_store):
         "ping": sensor_tiles.generate_ping_detail,
     }
 
-    def _sensor_overview(kind):
+    def _sensor_overview(kind, group=None):
         render, metrics = _SENSOR_OVERVIEWS[kind]
         snapshot = sensor_store.snapshot()
+        if group is not None:
+            snapshot["nodes"] = [n for n in snapshot["nodes"] if n.get("group") == group]
         if not any(m in n["latest"] for n in snapshot["nodes"] for m in metrics):
             return None
         return render(snapshot)
@@ -184,6 +200,15 @@ def create_images_blueprint(scheduler, config, sensor_store):
     def sensor_overview(kind, fmt):
         try:
             return _sensor_response(_sensor_overview(kind), fmt)
+        except Exception as exc:
+            return Response(str(exc), status=500)
+
+    # One group's nodes only (the topic segment after "sensor", e.g. "cosmic" or "sensor"), so
+    # each group gets its own four rows. Registered before the per-node route below.
+    @bp.route("/32x32/<any(env, net, ping):kind>/group/<group>.<any(brg565, png):fmt>")
+    def sensor_group_overview(kind, group, fmt):
+        try:
+            return _sensor_response(_sensor_overview(kind, group), fmt)
         except Exception as exc:
             return Response(str(exc), status=500)
 

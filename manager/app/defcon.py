@@ -93,7 +93,7 @@ class DefconMonitor:
         self.get_wan = get_wan                # () -> (wan dict or None, updated epoch or None)
         self.is_paused = is_paused            # () -> True while sending would disturb tests
         self.state = {"level": None, "reasons": [], "evaluated": None, "sent": None,
-                      "paused": False, "changed": None}
+                      "paused": False, "changed": None, "manual": None}
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._thread = None
@@ -123,7 +123,21 @@ class DefconMonitor:
         self.mqtt_service.publish(self.topic, json.dumps({"defcon": result["level"]}))
         with self._lock:
             self.state["sent"] = now
+            self.state["manual"] = None   # the automatic level has replaced any manual one
         return result["level"]
+
+    def set_manual(self, level, now=None):
+        """Send a level chosen by hand now. The next automatic update (within the interval, or
+        after a network sweep) replaces it."""
+        now = time.time() if now is None else now
+        level = int(level)
+        if not 1 <= level <= MAX_LEVEL:
+            raise ValueError("DEFCON level must be 1 to 5")
+        self.mqtt_service.publish(self.topic, json.dumps({"defcon": level}))
+        logging.info("DEFCON set manually to %d", level)
+        with self._lock:
+            self.state["manual"] = {"level": level, "at": now}
+            self.state["sent"] = now
 
     def snapshot(self):
         with self._lock:

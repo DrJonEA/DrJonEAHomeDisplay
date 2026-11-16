@@ -46,8 +46,31 @@
           Level since {{ defcon.changed_text }} &middot; evaluated {{ defcon.evaluated_text }} &middot;
           sent to displays {{ defcon.sent_text }} (every {{ defcon.interval }}s)
           {% if defcon.paused %}<br /><span class="warn-text">Paused while a network test runs</span>{% endif %}
+          {% if defcon.manual %}<br /><span class="warn-text">Set manually to {{ defcon.manual.level }} at
+            {{ defcon.manual.at_text }}; the next automatic update (within {{ defcon.interval }}s) will replace it</span>{% endif %}
         </p>
+        <form action="{{ url_for('pages.defcon_set') }}" method="post" class="defcon-buttons">
+          <span class="status-label">Set level</span>
+          {% set shown_level = defcon.manual.level if defcon.manual else defcon.level %}
+          {% for n in (5, 4, 3, 2, 1) %}
+          <button type="submit" name="level" value="{{ n }}"
+                  class="defcon-btn defcon-{{ n }}{{ ' current' if shown_level == n }}">{{ n }}</button>
+          {% endfor %}
+        </form>
       </div>
+    </div>
+  </section>
+
+  <section class="panel" id="commands" data-panel-id="QUICK COMMANDS">
+    <h2>Quick Commands</h2>
+    <div class="preset-grid">
+      {% for preset in presets %}
+      <form action="{{ url_for('api.publish') }}" method="post" class="preset-form">
+        <input type="hidden" name="topic" value="{{ preset.topic }}" />
+        <input type="hidden" name="payload" value="{{ preset_payload_json(preset) }}" />
+        <button type="submit" class="command preset-btn">{{ preset.label }}</button>
+      </form>
+      {% endfor %}
     </div>
   </section>
 
@@ -55,7 +78,7 @@
     <h2>Today's Calendar Theme</h2>
     <div class="calendar-today">
       <div class="tile-card">
-        <img src="{{ url_for('images.cal_png') }}" alt="today's calendar tile" />
+        <img data-tile="cal.brg565" src="{{ url_for('images.cal_png') }}" alt="today's calendar tile" />
         <span>{{ calendar.date.strftime('%a %d %b').upper() }}</span>
       </div>
       <div class="status-grid calendar-details">
@@ -98,6 +121,22 @@
         {% endif %}
       </div>
     </div>
+
+    <h3 class="sweep-heading">Next {{ calendar_ahead | length }} days &middot; click a tile to show it on the Cosmic displays</h3>
+    <div class="calendar-ahead">
+      {% for d in calendar_ahead %}
+      <form action="{{ url_for('pages.calendar_show') }}" method="post">
+        <input type="hidden" name="date" value="{{ d.iso }}" />
+        <button type="submit" class="tile-card tile-button{{ ' shown' if calendar_shown == d.iso }}"
+                title="Show {{ d.date.strftime('%A %d %B') }}{% if d.title %} ({{ d.title }}){% endif %} on the Cosmic displays">
+          <img src="{{ url_for('images.cal_day', day=d.iso, fmt='png') }}" alt="calendar tile for {{ d.iso }}" />
+          <span>{{ d.date.strftime('%a %d %b').upper() }}</span>
+          <span class="calendar-rule">{{ d.title or 'plain' }}</span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+    {% if calendar_shown %}<p class="sweep-flash ok-text">Sent {{ calendar_shown }} to the Cosmic displays.</p>{% endif %}
   </section>
 
   <section class="panel" id="widgets" data-panel-id="ACTIVE WIDGETS">
@@ -130,27 +169,27 @@
     <h2>Embedded Tile Monitor</h2>
     <div class="tile-grid">
       <div class="tile-card">
-        <img src="{{ url_for('images.weather_png') }}" alt="weather tile" />
+        <img data-tile="weather.brg565" src="{{ url_for('images.weather_png') }}" alt="weather tile" />
         <span>WEATHER</span>
       </div>
       <div class="tile-card">
-        <img src="{{ url_for('images.forecast_png') }}" alt="forecast tile" />
+        <img data-tile="forecast.brg565" src="{{ url_for('images.forecast_png') }}" alt="forecast tile" />
         <span>FORECAST</span>
       </div>
       <div class="tile-card">
-        <img src="{{ url_for('images.solar_png') }}" alt="solar tile" />
+        <img data-tile="solar.brg565" src="{{ url_for('images.solar_png') }}" alt="solar tile" />
         <span>SOLAR</span>
       </div>
       <div class="tile-card">
-        <img src="{{ url_for('images.cal_png') }}" alt="calendar tile" />
+        <img data-tile="cal.brg565" src="{{ url_for('images.cal_png') }}" alt="calendar tile" />
         <span>CALENDAR</span>
       </div>
       <div class="tile-card">
-        <img src="{{ url_for('static', filename='img/home.png') }}" alt="home tile" />
+        <img data-tile="home" src="{{ url_for('static', filename='img/home.png') }}" alt="home tile" />
         <span>HOME</span>
       </div>
       <div class="tile-card">
-        <img src="{{ url_for('images.pride_png') }}" alt="pride tile" />
+        <img data-tile="pride.brg565" src="{{ url_for('images.pride_png') }}" alt="pride tile" />
         <span>PRIDE</span>
       </div>
     </div>
@@ -165,23 +204,56 @@
     <div class="tile-grid">
       {% if has_env %}
       <div class="tile-card">
-        <img src="{{ url_for('images.sensor_overview', kind='env', fmt='png') }}" alt="environment overview tile" />
+        <img data-tile="env.brg565" src="{{ url_for('images.sensor_overview', kind='env', fmt='png') }}" alt="environment overview tile" />
         <span>ENV (env.brg565)</span>
       </div>
       {% endif %}
       {% if has_net %}
       <div class="tile-card">
-        <img src="{{ url_for('images.sensor_overview', kind='net', fmt='png') }}" alt="network overview tile" />
+        <img data-tile="net.brg565" src="{{ url_for('images.sensor_overview', kind='net', fmt='png') }}" alt="network overview tile" />
         <span>NET (net.brg565)</span>
       </div>
       {% endif %}
       {% if has_ping %}
       <div class="tile-card">
-        <img src="{{ url_for('images.sensor_overview', kind='ping', fmt='png') }}" alt="ping overview tile" />
+        <img data-tile="ping.brg565" src="{{ url_for('images.sensor_overview', kind='ping', fmt='png') }}" alt="ping overview tile" />
         <span>PING (ping.brg565)</span>
       </div>
       {% endif %}
     </div>
+
+    {% for group in sensor_groups %}
+    {% set members = sensor_nodes | selectattr('group', 'equalto', group) | list %}
+    <h3 class="sweep-heading">Group: {{ group }} &middot; {{ members | length }} node(s)</h3>
+    <div class="group-row">
+      <div class="tile-grid group-tiles">
+        {% for kind in ('env', 'net', 'ping') %}
+        <div class="tile-card">
+          <img data-tile="{{ kind }}/group/{{ group }}.brg565" src="{{ url_for('images.sensor_group_overview', kind=kind, group=group, fmt='png') }}"
+               alt="{{ kind }} tile for group {{ group }}"
+               onerror="this.closest('.tile-card').classList.add('tile-empty')" />
+          <span>{{ kind | upper }} ({{ kind }}/group/{{ group }}.brg565)</span>
+          <form action="{{ url_for('network.show_group_tile') }}" method="post">
+            <input type="hidden" name="kind" value="{{ kind }}" />
+            <input type="hidden" name="group" value="{{ group }}" />
+            <button type="submit" class="command preset-btn small-btn">SHOW ON DISPLAYS</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      <form action="{{ url_for('network.run') }}" method="post" class="sweep-actions">
+        <input type="hidden" name="group" value="{{ group }}" />
+        <button type="submit" name="stages" value="speed" class="command preset-btn" {{ 'disabled' if sweep_running }}>SPEED TEST GROUP</button>
+        <button type="submit" name="stages" value="all" class="command preset-btn" {{ 'disabled' if sweep_running }}>FULL SWEEP GROUP</button>
+      </form>
+    </div>
+    {% endfor %}
+    {% set clashes = sensor_nodes | selectattr('topics') | list %}
+    {% for node in clashes if node.topics | length > 1 %}
+    <p class="sweep-notes warn-text">"{{ node.id }}" is publishing on {{ node.topics | length }} topics
+      ({{ node.topics | join(', ') }}). Two devices are probably using the same client ID, so they appear
+      as one node. Give each device its own client ID.</p>
+    {% endfor %}
     <table class="widgets sensor-table">
       <thead>
         <tr>
@@ -197,6 +269,7 @@
           <th>IP</th>
           <th>Seen</th>
           <th>Tiles</th>
+          <th>Test</th>
         </tr>
       </thead>
       <tbody>
@@ -216,14 +289,21 @@
           <td>{{ node.age }}{% if node.stale %} <span class="status-value warn">STALE</span>{% endif %}</td>
           <td class="sensor-tiles">
             {% if l.temperature is defined or l.humidity is defined %}
-            <img src="{{ url_for('images.sensor_detail', kind='env', node_id=node.id, fmt='png') }}" alt="env/{{ node.id }}.brg565" title="env/{{ node.id }}.brg565" />
+            <img data-tile="env/{{ node.id }}.brg565" src="{{ url_for('images.sensor_detail', kind='env', node_id=node.id, fmt='png') }}" alt="env/{{ node.id }}.brg565" title="env/{{ node.id }}.brg565" />
             {% endif %}
             {% if l.mbps is defined or l.rssi is defined %}
-            <img src="{{ url_for('images.sensor_detail', kind='net', node_id=node.id, fmt='png') }}" alt="net/{{ node.id }}.brg565" title="net/{{ node.id }}.brg565" />
+            <img data-tile="net/{{ node.id }}.brg565" src="{{ url_for('images.sensor_detail', kind='net', node_id=node.id, fmt='png') }}" alt="net/{{ node.id }}.brg565" title="net/{{ node.id }}.brg565" />
             {% endif %}
             {% if l.icmp_ms is defined or l.mqtt_ms is defined or l.icmp_loss is defined %}
-            <img src="{{ url_for('images.sensor_detail', kind='ping', node_id=node.id, fmt='png') }}" alt="ping/{{ node.id }}.brg565" title="ping/{{ node.id }}.brg565" />
+            <img data-tile="ping/{{ node.id }}.brg565" src="{{ url_for('images.sensor_detail', kind='ping', node_id=node.id, fmt='png') }}" alt="ping/{{ node.id }}.brg565" title="ping/{{ node.id }}.brg565" />
             {% endif %}
+          </td>
+          <td>
+            <form action="{{ url_for('network.run') }}" method="post">
+              <input type="hidden" name="node" value="{{ node.id }}" />
+              <button type="submit" name="stages" value="speed" class="command preset-btn small-btn"
+                      {{ 'disabled' if sweep_running or node.stale }}>SPEED TEST</button>
+            </form>
           </td>
         </tr>
         {% endfor %}
@@ -231,6 +311,17 @@
     </table>
     {% else %}
     <p class="status-value">No sensor data received yet on {{ sensor_topic }}</p>
+    {% endif %}
+    {% if sensor_rejected %}
+    <h3 class="sweep-heading">Sensor messages that couldn't be read</h3>
+    <table class="widgets sweep-table">
+      <thead><tr><th>Topic</th><th>Count</th><th>Last</th><th>Last payload</th></tr></thead>
+      <tbody>
+        {% for r in sensor_rejected %}
+        <tr><td>{{ r.topic }}</td><td>{{ r.count }}</td><td>{{ r.age }} ago</td><td><code>{{ r.payload }}</code></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
     {% endif %}
   </section>
 
@@ -254,19 +345,6 @@
     {% include "_network_sweep.html" %}
   </section>
 
-  <section class="panel" id="commands" data-panel-id="QUICK COMMANDS">
-    <h2>Quick Commands</h2>
-    <div class="preset-grid">
-      {% for preset in presets %}
-      <form action="{{ url_for('api.publish') }}" method="post" class="preset-form">
-        <input type="hidden" name="topic" value="{{ preset.topic }}" />
-        <input type="hidden" name="payload" value="{{ preset_payload_json(preset) }}" />
-        <button type="submit" class="command preset-btn">{{ preset.label }}</button>
-      </form>
-      {% endfor %}
-    </div>
-  </section>
-
   <section class="panel" id="console" data-panel-id="COMMAND CONSOLE">
     <h2>Command Console</h2>
     <form action="{{ url_for('api.publish') }}" method="post">
@@ -288,9 +366,11 @@
     window.DECK_CONFIG = {
       latestUrl: "{{ url_for('api.latest') }}",
       eventsUrl: "{{ url_for('api.events') }}",
-      sweepPanelUrl: "{{ url_for('network.panel') }}"
+      sweepPanelUrl: "{{ url_for('network.panel') }}",
+      showTileUrl: "{{ url_for('pages.tile_show') }}"
     };
   </script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
   <script src="{{ url_for('static', filename='js/network_sweep.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/tiles.js') }}"></script>
 {% endblock %}

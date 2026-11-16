@@ -60,7 +60,23 @@ def create_network_blueprint():
     @bp.route("/network-sweep/run", methods=["POST"])
     def run():
         stages = RUN_CHOICES.get(request.form.get("stages", "all"), STAGES)
-        started = current_app.network_sweep.start(stages=stages, trigger="manual")
+        started = current_app.network_sweep.start(
+            stages=stages, trigger="manual",
+            group=request.form.get("group") or None, node=request.form.get("node") or None)
         return redirect(url_for("pages.index", sweep="started" if started else "busy", _anchor="network"))
+
+    @bp.route("/sensors/show", methods=["POST"])
+    def show_group_tile():
+        """Send a sensor tile (kind env/net/ping, optionally one group's) to the displays."""
+        import json
+        from ..display_presets import DISPLAY_TOPIC
+        kind = request.form.get("kind", "env")
+        if kind not in ("env", "net", "ping"):
+            kind = "env"
+        group = request.form.get("group")
+        data = "%s/group/%s.brg565" % (kind, group) if group else "%s.brg565" % kind
+        current_app.mqtt_service.publish(DISPLAY_TOPIC, json.dumps(
+            {"layout": "layout2", "widgets": [{"type": "img", "data": data}]}))
+        return redirect(url_for("pages.index", _anchor="sensors"))
 
     return bp
