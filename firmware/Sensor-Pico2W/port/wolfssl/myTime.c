@@ -21,8 +21,10 @@ word32 LowResTimer(void) {
 
 //https://deemocean.com/2022/10/02/rp2040-randomness-and-ring-oscillator/
 
-#define ROSC_RANDOMBIT_OFFSET _u(0x0000001c)
-#define ROSC_BASE _u(0x40060000)
+// ROSC address and RANDOMBIT offset differ between RP2040 and RP2350,
+// so take them from the SDK register headers for the target chip
+#include "hardware/regs/addressmap.h"
+#include "hardware/regs/rosc.h"
 
 // return random number by ROSC between 0-2^N
 // N should be in [0,32]

@@ -40,3 +40,6 @@
 [submodule "lib/RPIPicoOnboardNVS"]
 	path = lib/RPIPicoOnboardNVS
 	url = https://github.com/jondurrant/RPIPicoOnboardNVS
+[submodule "lib/wolfmqtt"]
+	path = lib/wolfmqtt
+	url = https://github.com/wolfssl/wolfmqtt
