@@ -194,8 +194,11 @@ void main_task(void *params){
 		return;
 	}
 
-	cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
 	cyw43_arch_enable_sta_mode();
+	// Must follow enable_sta_mode, which resets power management to
+	// CYW43_DEFAULT_PM (power save). Power save delays and drops inbound
+	// packets, losing MQTT messages and ICMP echoes.
+	cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
 
 	// Start agent early so config can be received on stdin even if WiFi fails
 	SensorAgent::singleton()->start("SensorAgent", TASK_PRIORITY);

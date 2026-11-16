@@ -41,6 +41,7 @@ public:
 			size_t payloadLen, MQTTInterface *interface);
 
 private:
+	bool isTopic(const char *target, const char *topic, size_t topicLen);
 	char * pDisplayTopic = NULL;
 	char * pGroupTopic = NULL;
 	char * pDeviceTopic = NULL;

@@ -268,7 +268,11 @@ void TileAgent::processJSON(){
 		sprintf(pBuffer, "%s/speedtest",
 				DeviceState::singleton()->getHTTPconn()
 				);
-		char * data = (char *) SRAM_BASE;
+		// Any 100KB will do as the payload, so send the start of flash
+		// (boot stage 2, vector table and code). Not SRAM: RAM holds
+		// the Wi-Fi and MQTT credentials. Flash can hold them too (NVS,
+		// and any defaults built in), so only POST to a trusted server.
+		char * data = (char *) XIP_BASE;
 		uint32_t start = to_ms_since_boot (get_absolute_time());
 		if (req->postPayload(pBuffer,  data, (100 * 1024))){
 			uint32_t stop = to_ms_since_boot (get_absolute_time());

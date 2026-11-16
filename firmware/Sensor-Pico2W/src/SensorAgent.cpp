@@ -69,7 +69,7 @@ void SensorAgent::run(){
 	uint32_t now;
 	uint32_t last = to_ms_since_boot (get_absolute_time());
 	for (;;){
-		// MQTT requests
+		// MQTT requests: drain everything queued, not one per loop
 		if (xReqBuffer){
 			size_t length = xMessageBufferReceive(
 					xReqBuffer,
@@ -77,10 +77,11 @@ void SensorAgent::run(){
 					REQ_BUFFER,
 					10);
 
-			if (length > 0){
+			while (length > 0){
 				pBuffer[length] = 0;
 				printf("Received %s\n", pBuffer);
 				processJSON();
+				length = xMessageBufferReceive(xReqBuffer, pBuffer, REQ_BUFFER, 0);
 			}
 		}
 
@@ -166,12 +167,22 @@ void SensorAgent::speedTest(){
 		return;
 	}
 	char url[128];
-	snprintf(url, sizeof(url), "%s/speedtest",
-			DeviceState::singleton()->getHTTPconn());
+	// Older configs stored httpConn with a trailing '/', which gives
+	// "//speedtest" and a redirect instead of 200
+	const char *base = DeviceState::singleton()->getHTTPconn();
+	size_t baseLen = strlen(base);
+	while ((baseLen > 0) && (base[baseLen - 1] == '/')){
+		baseLen--;
+	}
+	snprintf(url, sizeof(url), "%.*s/speedtest", (int)baseLen, base);
+	printf("Speed test: POST %d bytes to %s\n", SPEEDTEST_BYTES, url);
 
 	Request *req = new Request(pRespBuffer, RESP_BUFFER);
-	// Any 100KB will do as the payload, so just send the start of SRAM
-	const char * data = (const char *) SRAM_BASE;
+	// Any 100KB will do as the payload, so send the start of flash
+	// (boot stage 2, vector table and code). Not SRAM: RAM holds the
+	// Wi-Fi and MQTT credentials. Flash can hold them too (NVS, and
+	// any defaults built in), so only POST to a server you trust.
+	const char * data = (const char *) XIP_BASE;
 	uint32_t start = to_ms_since_boot (get_absolute_time());
 	if (req->postPayload(url, data, SPEEDTEST_BYTES)){
 		uint32_t stop = to_ms_since_boot (get_absolute_time());
@@ -183,8 +194,12 @@ void SensorAgent::speedTest(){
 			printf("Speed test %.2f Mbps\n", mbps);
 			sendSensors();
 		}
+		if (req->getStatusCode() != 200){
+			printf("Speed test: server returned %d, mbps not updated\n",
+					req->getStatusCode());
+		}
 	} else {
-		printf("HTTP POST %s failed\n", url);
+		printf("HTTP POST %s failed, mbps not updated\n", url);
 	}
 	delete(req);
 }

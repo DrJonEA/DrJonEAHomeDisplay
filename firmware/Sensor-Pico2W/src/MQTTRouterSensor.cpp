@@ -68,7 +68,20 @@ void MQTTRouterSensor::route(const char *topic,
 		MQTTInterface *interface){
 	MQTTRouterTwin::route(topic, topicLen, payload, payloadLen, interface);
 
-	printf("TOPIC: %.*s, Payload(%d) %.*s\n",
-			topicLen, topic, payloadLen, payloadLen, (const char *)payload);
-	SensorAgent::singleton()->processRequest(payload, payloadLen);
+	// Only display topics carry SensorAgent commands. Ping and twin
+	// messages are handled by MQTTRouterTwin above.
+	if (isTopic(pDisplayTopic, topic, topicLen) ||
+			isTopic(pGroupTopic, topic, topicLen) ||
+			isTopic(pDeviceTopic, topic, topicLen)){
+		printf("TOPIC: %.*s, Payload(%d) %.*s\n",
+				topicLen, topic, payloadLen, payloadLen, (const char *)payload);
+		SensorAgent::singleton()->processRequest(payload, payloadLen);
+	}
+}
+
+bool MQTTRouterSensor::isTopic(const char *target, const char *topic, size_t topicLen){
+	if (target == NULL){
+		return false;
+	}
+	return (strlen(target) == topicLen) && (memcmp(target, topic, topicLen) == 0);
 }

@@ -247,7 +247,7 @@ void DeviceState::setupDefaults(){
 	}
 
 	if (!nvs->contains(DEV_HTTP_STR)){
-		nvs->set_str ( DEV_HTTP_STR , "http://jons-mbs:5080/");
+		nvs->set_str ( DEV_HTTP_STR , "http://jons-mbs:5080");
 	}
 
 	if (!nvs->contains(DEV_TOPIC_ORG)){

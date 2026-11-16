@@ -15,6 +15,7 @@
 #include "pico/stdlib.h"
 #include "hardware/watchdog.h"
 #include <stdio.h>
+#include <string.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -169,8 +170,26 @@ void readSensors(){
 }
 
 
+/***
+ * Print the configuration held in NVS (passwords shown only as set/empty)
+ */
+void printConfig(){
+	DeviceState *ds = DeviceState::singleton();
+	printf("CONFIG ssid:       '%s' (pwd %s)\n", ds->getSSID(),
+			strlen(ds->getSSIDpwd()) ? "set" : "EMPTY");
+	printf("CONFIG mqttHost:   '%s' port %d\n", ds->getMQTThost(), ds->getMQTTport());
+	printf("CONFIG mqttClient: '%s'\n", ds->getMQTTclient());
+	printf("CONFIG mqttUser:   '%s' (pwd %s)\n", ds->getMQTTuser(),
+			strlen(ds->getMQTTpwd()) ? "set" : "EMPTY");
+	printf("CONFIG httpConn:   '%s'\n", ds->getHTTPconn());
+	printf("CONFIG org/group:  '%s' / '%s'\n", ds->getTopicOrg(), ds->getTopicGroup());
+	printf("CONFIG tz:         %d minutes\n", ds->getTimeZone());
+}
+
+
 void main_task(void *params){
 	printf("Main task started\n");
+	printConfig();
 
 	// Init Wifi Adapter
 	int res = cyw43_arch_init();
@@ -180,8 +199,11 @@ void main_task(void *params){
 		return;
 	}
 
-	cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
 	cyw43_arch_enable_sta_mode();
+	// Must follow enable_sta_mode, which resets power management to
+	// CYW43_DEFAULT_PM (power save). Power save delays and drops inbound
+	// packets, losing MQTT pings and ICMP echoes.
+	cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
 
 	// Start agent early so config can be received on stdin even if WiFi fails
 	SensorAgent::singleton()->start("SensorAgent", TASK_PRIORITY);

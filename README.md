@@ -71,9 +71,14 @@ configured HTTP server. It times the request, and if the server answers `200` it
 device state to the upload speed in megabits per second. The new value goes out with the next state
 update, alongside `wifiRSSI`, so you can compare speed and signal strength.
 
-- The payload is just a copy of the Pico's RAM, so the server should accept any body and ignore its
-  content. The request is sent as `Content-Type: application/json`, so the endpoint must not try to
-  parse it.
+- The payload is the first 100 KB of the Pico's flash (`XIP_BASE`: boot stage 2, the vector table and
+  code), so the server should accept any body and ignore its content. The request is sent as
+  `Content-Type: application/json`, so the endpoint must not try to parse it.
+- **Security warning:** the payload is real device memory, sent over plain HTTP. Earlier versions sent
+  the start of RAM (`SRAM_BASE`), which almost certainly includes the Wi-Fi password and MQTT
+  credentials. Flash is safer but not guaranteed clean: credentials live in flash too (in NVS, and as
+  any defaults built in with `WIFI_PASSWORD` or `MQTT_PASSWD`). Only point `<httpConn>` at a server you
+  own, on your own network, that discards the body.
 - The time includes connecting, sending the headers and waiting for the response, so `mbps` slightly
   understates the raw transfer rate.
 - To give TCP enough memory for a fast upload, lwIP's `MEM_SIZE` is now 16 KB (it was 4000 bytes) in
