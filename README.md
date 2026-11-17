@@ -55,7 +55,9 @@ Unit can be configured over USB Serial by sending a JSON string. See *exp/pyConf
 *firmware/Sensor-Wolf-Pico2W* is a sensor node with no display, for the Raspberry Pi Pico 2 W. It
 publishes temperature, humidity (AHT10), RSSI and upload speed to `<ORG>/sensor/<group>/<clientid>`, and
 runs the speed test when asked on its display topics. It uses wolfMQTT instead of TwinThing and coreMQTT,
-so it doesn't answer the TwinThing MQTT ping. It is configured over USB serial like the displays. See its
+so it doesn't answer the TwinThing MQTT ping. It connects to the broker over TLS (port 8883) and checks
+the broker's certificate against a CA built into the firmware. It is configured over USB serial like the
+displays. See its
 [README](firmware/Sensor-Wolf-Pico2W/README.md) for the details.
 
 ### Network speed test

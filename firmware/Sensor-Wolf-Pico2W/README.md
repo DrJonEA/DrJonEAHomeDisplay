@@ -7,10 +7,15 @@ It does the same job as *Sensor-Pico2W* but uses [wolfMQTT](https://github.com/w
 instead of the TwinThing framework and coreMQTT. It only uses the `<ORG>/display` and `<ORG>/sensor`
 topics, not the TwinThing `GRP/...` and `TNG/...` topics.
 
+It connects to the broker with MQTT over TLS, using [wolfSSL](https://github.com/wolfSSL/wolfssl). It
+checks the broker's certificate against a CA certificate that is built into the firmware, and checks that
+the certificate names the configured broker host.
+
 Back to the [main README](../../README.md).
 
 ## What it does
 - Joins WiFi, sets the clock from NTP and applies the stored timezone.
+- Connects to the broker over TLS (TLS 1.2 or 1.3) once the clock is set.
 - Reads an AHT10 temperature and humidity sensor and the WiFi RSSI every 3 seconds.
 - Every 10 seconds, publishes a sensor report to `<ORG>/sensor/<group>/<clientid>`:
   ```json
@@ -66,7 +71,9 @@ Because the TwinThing topics are not used:
   sensor reports still work.
 - **No TwinThing state.** There are no online/offline lifecycle messages and no device twin.
 - **No last will.** The broker doesn't announce when the node drops off.
-- **No TLS.** MQTT runs over plain TCP. wolfSSL is in the build for the HTTP client, ready for later.
+- **No client certificate.** The node proves who it is with its MQTT user name and password, sent
+  inside the TLS connection.
+- **No HTTPS.** The speed test still POSTs over plain HTTP.
 
 A sensor report published while the broker is unreachable is dropped. The next report follows 10
 seconds later.
@@ -79,7 +86,7 @@ an example. Every key is optional:
 | Key | Meaning | First boot default |
 |---|---|---|
 | `ssid`, `pwd` | WiFi network and password | `WIFI_SSID`, `WIFI_PASSWORD` |
-| `mqttHost`, `mqttPort` | Broker host name or IP address, and port | `MQTT_HOST`, `MQTT_PORT` |
+| `mqttHost`, `mqttPort` | Broker host name and TLS port | `MQTT_HOST`, `MQTT_PORT` |
 | `mqttClient` | MQTT client ID, also used as `<clientid>` in topics | `MQTT_CLIENT` |
 | `mqttUser`, `mqttPwd` | Broker user name and password | `MQTT_USER`, `MQTT_PASSWD` |
 | `httpConn` | Base URL of the Display Manager, used for the speed test | `http://jons-mbs:5080` |
@@ -88,16 +95,31 @@ an example. Every key is optional:
 | `tz` | UTC offset in minutes | `0` |
 | `reboot` | Any value reboots the node after storing the settings | |
 
-For example:
+`mqttHost` must be the DNS name in the broker's certificate, not an IP address, or the TLS connection
+is refused. `mqttPort` is the broker's TLS port, normally 8883. For example:
 ```json
-{"mqttHost": "broker.local", "mqttPort": 1883, "group": "sensor", "reboot": true}
+{"mqttHost": "vmu26a.local.jondurrant.com", "mqttPort": 8883, "group": "sensor", "reboot": true}
 ```
 Topic and broker changes take effect after a reboot.
 
+A node flashed with an earlier, plain TCP build keeps its stored broker port, probably 1883, so send it
+the new host and port as above. It logs a warning if the port is 1883.
+
 ## Building
-Clone the repo with submodules; wolfMQTT is the `lib/wolfmqtt` submodule. The build needs Pico SDK 2.x
-and these environment variables, which only set the first boot defaults:
+Clone the repo with submodules; wolfMQTT and wolfSSL are the `lib/wolfmqtt` and `lib/wolfssl`
+submodules. The build needs Pico SDK 2.x and these environment variables, which only set the first boot
+defaults:
 `WIFI_SSID`, `WIFI_PASSWORD`, `MQTT_CLIENT`, `MQTT_USER`, `MQTT_PASSWD`, `MQTT_HOST`, `MQTT_PORT`.
+Use the broker's DNS name for `MQTT_HOST` and its TLS port, normally 8883, for `MQTT_PORT`.
+
+The build also needs the CA certificate that signed the broker's certificate, in PEM format. Copy it to
+*certs/mqtt_ca.pem*, or set `MQTT_CA_FILE` to its path. CMake stops with an error if the file is missing.
+The file can hold more than one certificate. The broker doesn't send its CA during the handshake, so the
+firmware can't work without this file. The CA certificate is public, so it is safe to commit; never put
+the CA's private key here.
+
+The CA is built into the firmware, so rebuild and reflash when the CA changes. Renewing the broker's own
+certificate with the same CA needs no rebuild.
 
 ```sh
 cd firmware/Sensor-Wolf-Pico2W
@@ -113,8 +135,8 @@ Four FreeRTOS tasks:
 - **Main** (`main.cpp`) connects WiFi, starts NTP and the other tasks, then reads the sensors and logs
   status every 3 seconds. It rejoins WiFi if the link drops.
 - **MQTTClient** (`MQTTClientAgent.cpp`) owns the wolfMQTT client. Every wolfMQTT call runs on this task,
-  so wolfMQTT is used in single-threaded mode. It connects, subscribes, waits for messages in 100 ms
-  slices, and sends queued publishes. If anything fails it closes the connection, waits 3 seconds and
+  so wolfMQTT is used in single-threaded mode. It waits for the clock, connects over TLS, subscribes,
+  waits for messages in 100 ms slices, and sends queued publishes. If anything fails it closes the connection, waits 3 seconds and
   starts again. wolfMQTT sends the keep-alive pings (every 30 seconds) itself.
 - **SensorAgent** (`SensorAgent.cpp`) handles commands and serial configuration, runs the speed test and
   builds the sensor reports. Other tasks hand messages to the MQTT task with `publish()`, which puts them
@@ -122,8 +144,21 @@ Four FreeRTOS tasks:
 - **Watchdog** keeps the 5 second hardware watchdog fed until a reboot is requested.
 
 ### wolfMQTT port
-- **Network callbacks.** `MQTTClientAgent.cpp` provides plain TCP connect, read, write and close
-  callbacks using lwIP sockets. Reads use `select()` with a timeout.
+- **Network callbacks.** `MQTTClientAgent.cpp` provides TCP connect, read, write and close callbacks
+  using lwIP sockets. Reads use `select()` with a timeout and return as soon as data arrives.
+- **TLS.** `options.h` defines `ENABLE_MQTT_TLS`, so wolfMQTT runs wolfSSL on top of those callbacks.
+  When it connects, wolfMQTT calls `tlsCB()`, which:
+  - sets up a TLS 1.2 or 1.3 client;
+  - loads the CA from *mqtt_ca.h*, which CMake generates from the PEM file;
+  - requires the broker's certificate to verify against that CA;
+  - sets SNI to the broker host.
+
+  wolfMQTT then checks that the certificate names the host. The wolfSSL settings are in
+  *port/wolfssl/user_settings.h*. They offer TLS_AES_128_GCM_SHA256 with P-256 key exchange and RSA or
+  ECC certificates up to 2048 bits.
+- **Certificate clock.** wolfSSL checks certificate dates with `my_time()` in *port/wolfssl/myTime.c*.
+  That reads the clock NTP sets, so the agent waits for NTP before it connects. The clock runs on local
+  time, so the date checks can be out by the timezone offset.
 - **Build options.** wolfMQTT normally reads `user_settings.h`, which would clash with wolfSSL's file of
   the same name. Instead, *port/wolfmqtt/wolfmqtt/options.h* holds the settings, and
   *wolfmqtt_import.cmake* builds the library from the submodule unchanged.
@@ -135,13 +170,24 @@ The serial log follows the node through its lifecycle:
 
 - `[LIFE]` lines mark startup steps (WiFi joined with its IP address, NTP started, MQTT task started),
   WiFi drops and the offline reboot.
-- `[MQTT] state A -> B` lines show each step of a connection: `WAIT_WIFI`, `DNS`, `TCP_CONNECT`,
-  `MQTT_CONNECT`, `SUBSCRIBE`, `ONLINE`, then `BACKOFF` after a failure.
+- `[MQTT] state A -> B` lines show each step of a connection: `WAIT_WIFI`, `WAIT_TIME` (waiting for
+  NTP), `DNS`, `TCP_CONNECT`, `TLS`, `MQTT_CONNECT`, `SUBSCRIBE`, `ONLINE`, then `BACKOFF` after a
+  failure. A successful connection logs the TLS version, cipher and handshake time.
 - Each connection attempt logs the host, port, client ID and user, and whether a password is set (never
   the password itself). A failure logs where it happened:
   - DNS lookup, with how long it took.
   - TCP connect, with the error number. 113 means the host is unreachable; 104 or 111 means nothing is
     listening on that port.
+  - TLS handshake, with the wolfSSL error and a hint for the common ones:
+
+    | Error | Meaning |
+    |---|---|
+    | -188 | The broker's certificate isn't signed by the built-in CA |
+    | -322 | `mqttHost` isn't the name in the certificate |
+    | -173 | `mqttHost` is an IP address |
+    | -150 | The certificate isn't valid yet; check the clock |
+    | -151 | The certificate has expired |
+    | -326 | The port isn't a TLS port |
   - Broker refusal, decoded, for example `bad user name or password` or `client id rejected`.
   - Subscription, marked `REFUSED` if the broker's access control blocks it.
 - Every 3 seconds, a `[NET]` line gives the WiFi and IP link states, the IP address and the RSSI, and a
@@ -150,4 +196,5 @@ The serial log follows the node through its lifecycle:
 - Task stack and heap statistics print about once a minute.
 
 For packet-level detail, uncomment `WOLFMQTT_DEBUG_CLIENT` and `WOLFMQTT_DEBUG_SOCKET` in
-*port/wolfmqtt/wolfmqtt/options.h*.
+*port/wolfmqtt/wolfmqtt/options.h*. For a wolfSSL handshake trace, define `MQTT_TLS_DEBUG` when you
+compile *MQTTClientAgent.cpp*.

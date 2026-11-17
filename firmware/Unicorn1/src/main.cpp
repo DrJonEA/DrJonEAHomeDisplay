@@ -180,9 +180,11 @@ void main_task(void *params){
 		return;
 	}
 
-	cyw43_wifi_pm(&cyw43_state ,CYW43_NONE_PM);
-
 	cyw43_arch_enable_sta_mode();
+	// Must follow enable_sta_mode, which resets power management to
+	// CYW43_DEFAULT_PM (power save). Power save delays inbound packets
+	// (TCP ACKs, MQTT, ICMP), slowing uploads and losing pings.
+	cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
 
 	//Loop trying to connect to Wifi
 	wifiConnect();

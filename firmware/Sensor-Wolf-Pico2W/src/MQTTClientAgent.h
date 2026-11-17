@@ -3,7 +3,9 @@
  *
  * Owns the wolfMQTT client and its lwIP socket. All wolfMQTT calls are made
  * from this agent's task, so the library is used single threaded:
- *  - Connects (and reconnects) using the broker settings held in NVS
+ *  - Connects (and reconnects) over TLS using the broker settings held in
+ *    NVS. The broker certificate is verified against the CA embedded at
+ *    build time (mqtt_ca.h) and must name the configured host.
  *  - Subscribes to <org>/display, <org>/display/<group> and
  *    <org>/display/<group>/<client>, passing payloads to the SensorAgent
  *  - Publishes messages that other tasks queue with publish()
@@ -16,6 +18,9 @@
 #define FIRMWARE_SENSOR_WOLF_PICO2W_SRC_MQTTCLIENTAGENT_H_
 
 #include "pico/stdlib.h"
+// SDK headers before wolfMQTT: with TLS it pulls in wolfSSL and the lwIP
+// socket compatibility macros (poll, connect...), which break SDK headers
+#include "pico/cyw43_arch.h"
 #include "Agent.h"
 #include "FreeRTOS.h"
 #include "queue.h"
@@ -38,8 +43,10 @@
 typedef enum {
 	MQTT_STATE_INIT = 0,
 	MQTT_STATE_WAIT_WIFI,
+	MQTT_STATE_WAIT_TIME,
 	MQTT_STATE_DNS,
 	MQTT_STATE_TCP_CONNECT,
+	MQTT_STATE_TLS,
 	MQTT_STATE_MQTT_CONNECT,
 	MQTT_STATE_SUBSCRIBE,
 	MQTT_STATE_ONLINE,
@@ -92,6 +99,8 @@ private:
 	void brokerDisconnect();
 	bool brokerSubscribe();
 	bool sendQueued();
+	bool clockValid();
+	void reportTlsError();
 
 	int onMessage(MqttMessage *msg, ::byte msgNew, ::byte msgDone);
 
@@ -101,6 +110,7 @@ private:
 	static int netWrite(void *context, const ::byte* buf, int buf_len, int timeout_ms);
 	static int netDisconnect(void *context);
 	static int msgCB(MqttClient *client, MqttMessage *msg, ::byte msgNew, ::byte msgDone);
+	static int tlsCB(MqttClient *client);
 
 	word16 nextPacketId();
 	void setState(MQTTState s);

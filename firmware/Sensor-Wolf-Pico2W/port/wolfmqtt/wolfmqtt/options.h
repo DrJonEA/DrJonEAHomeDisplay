@@ -5,7 +5,7 @@
  * without WOLFMQTT_USER_SETTINGS, whose "user_settings.h" would clash with
  * the wolfSSL user_settings.h on the include path.
  *
- * Plain TCP only (no ENABLE_MQTT_TLS), MQTT v3.1.1, single threaded.
+ * MQTT v3.1.1 over TLS (wolfSSL), single threaded.
  */
 
 #ifndef WOLFMQTT_OPTIONS_H
@@ -16,6 +16,9 @@ extern "C" {
 #endif
 
 #include "pico/time.h"
+
+/* MQTT over TLS. wolfMQTT runs wolfSSL on top of the MqttNet callbacks */
+#define ENABLE_MQTT_TLS
 
 /* Uncomment for wolfMQTT's own trace of packets and socket reads/writes */
 //#define WOLFMQTT_DEBUG_CLIENT

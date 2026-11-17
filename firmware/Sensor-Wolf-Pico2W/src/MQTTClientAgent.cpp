@@ -10,8 +10,17 @@
 #include <cerrno>
 
 #include "pico/cyw43_arch.h"
+#include "pico/aon_timer.h"
 #include "DeviceState.h"
 #include "SensorAgent.h"
+#include "mqtt_ca.h"
+
+#include "wolfssl/ssl.h"
+#include "wolfssl/error-ssl.h"
+#include "wolfssl/wolfcrypt/error-crypt.h"
+
+// Any time before this means SNTP has not set the clock yet (2024-01-01)
+#define MQTT_MIN_VALID_TIME 1704067200
 
 // lwIP socket headers last: their compatibility macros (connect, poll, ...)
 // would otherwise rewrite names in the SDK and project headers
@@ -75,8 +84,10 @@ const char * MQTTClientAgent::stateToString(MQTTState s){
 	switch(s){
 	case MQTT_STATE_INIT:			return "INIT";
 	case MQTT_STATE_WAIT_WIFI:		return "WAIT_WIFI";
+	case MQTT_STATE_WAIT_TIME:		return "WAIT_TIME";
 	case MQTT_STATE_DNS:			return "DNS";
 	case MQTT_STATE_TCP_CONNECT:	return "TCP_CONNECT";
+	case MQTT_STATE_TLS:			return "TLS";
 	case MQTT_STATE_MQTT_CONNECT:	return "MQTT_CONNECT";
 	case MQTT_STATE_SUBSCRIBE:		return "SUBSCRIBE";
 	case MQTT_STATE_ONLINE:			return "ONLINE";
@@ -113,7 +124,9 @@ void MQTTClientAgent::printStatus(){
 }
 
 configSTACK_DEPTH_TYPE MQTTClientAgent::getMaxStackSize(){
-	return 1536;
+	// TLS handshake (certificate parsing, RSA and ECC) needs more stack
+	// than plain MQTT
+	return 3072;
 }
 
 word16 MQTTClientAgent::nextPacketId(){
@@ -184,6 +197,12 @@ void MQTTClientAgent::run(){
 				continue;
 			}
 			lastLink = link;
+			// Certificate dates can't be checked until SNTP sets the clock
+			if (!clockValid()){
+				setState(MQTT_STATE_WAIT_TIME);
+				vTaskDelay(1000);
+				continue;
+			}
 			if (!brokerConnect()){
 				xFailures++;
 				brokerDisconnect();
@@ -229,22 +248,35 @@ bool MQTTClientAgent::brokerConnect(){
 		strcpy(pLastErrorWhere, "config");
 		return false;
 	}
+	if (port == 1883){
+		printf("[MQTT] WARNING: port 1883 is normally plain MQTT, "
+				"MQTT over TLS is normally 8883\n");
+	}
 
-	// DNS and TCP states are set inside netConnect
+	// DNS, TCP and TLS states are set inside netConnect. wolfMQTT then runs
+	// the TLS handshake over the net callbacks, using tlsCB to load the CA.
+	uint32_t t0 = to_ms_since_boot(get_absolute_time());
 	int rc = MqttClient_NetConnect(&xClient, host, (word16)port,
-			MQTT_CMD_TIMEOUT_MS, 0, NULL);
+			MQTT_CMD_TIMEOUT_MS, 1, MQTTClientAgent::tlsCB);
 	if (rc != MQTT_CODE_SUCCESS){
 		printf("[MQTT] NetConnect failed: %s (%d)\n",
 				MqttClient_ReturnCodeToString(rc), rc);
 		xLastError = rc;
 		if (xState == MQTT_STATE_DNS){
 			strcpy(pLastErrorWhere, "DNS");
+		} else if (xState == MQTT_STATE_TLS){
+			strcpy(pLastErrorWhere, "TLS");
+			reportTlsError();
 		} else {
 			strcpy(pLastErrorWhere, "TCP connect");
 		}
 		return false;
 	}
-	printf("[MQTT] TCP connected to %s:%d\n", pBrokerIP, port);
+	printf("[MQTT] TLS connected to %s:%d, %s %s, took %lums\n",
+			pBrokerIP, port,
+			wolfSSL_get_version(xClient.tls.ssl),
+			wolfSSL_get_cipher(xClient.tls.ssl),
+			(unsigned long)(to_ms_since_boot(get_absolute_time()) - t0));
 	setState(MQTT_STATE_MQTT_CONNECT);
 
 	MqttConnect conn;
@@ -360,6 +392,53 @@ bool MQTTClientAgent::sendQueued(){
 	return true;
 }
 
+/***
+ * True once SNTP has set the clock, so certificate dates can be checked
+ */
+bool MQTTClientAgent::clockValid(){
+	struct timespec ts;
+	if (!aon_timer_is_running() || !aon_timer_get_time(&ts)){
+		return false;
+	}
+	return (ts.tv_sec > MQTT_MIN_VALID_TIME);
+}
+
+/***
+ * Explain a failed TLS handshake. wolfMQTT keeps the wolfSSL error code.
+ */
+void MQTTClientAgent::reportTlsError(){
+	int err = xClient.tls.lastError;
+	const char *hint = "";
+	switch (err){
+	case ASN_NO_SIGNER_E:
+		hint = "broker certificate is not signed by the embedded CA";
+		break;
+	case ASN_BEFORE_DATE_E:
+		hint = "broker certificate not yet valid, check the clock";
+		break;
+	case ASN_AFTER_DATE_E:
+		hint = "broker certificate has expired";
+		break;
+	case DOMAIN_NAME_MISMATCH:
+		hint = "mqttHost does not match the name in the broker certificate";
+		break;
+	case BAD_FUNC_ARG:
+		hint = "mqttHost must be a DNS name, not an IP address";
+		break;
+	case SOCKET_ERROR_E:
+	case SOCKET_PEER_CLOSED_E:
+		hint = "connection dropped, is the port TLS (8883)?";
+		break;
+	case VERSION_ERROR:
+		hint = "broker did not answer with TLS, is the port TLS (8883)?";
+		break;
+	}
+	xLastError = err;
+	printf("[MQTT] TLS handshake failed: wolfSSL error %d (%s)%s%s\n",
+			err, wolfSSL_ERR_reason_error_string(err),
+			hint[0] ? ", " : "", hint);
+}
+
 void MQTTClientAgent::brokerDisconnect(){
 	if (xConnected){
 		MqttClient_Disconnect(&xClient);
@@ -413,7 +492,45 @@ int MQTTClientAgent::onMessage(MqttMessage *msg, ::byte msgNew, ::byte msgDone){
 
 
 /***
- * Network callbacks: plain TCP over lwIP sockets
+ * Called by MqttClient_NetConnect after wolfSSL_Init and before the
+ * handshake. Builds the wolfSSL context: TLS 1.2 or 1.3, broker certificate
+ * verified against the embedded CA. wolfMQTT then checks the certificate
+ * names the host we connected to.
+ */
+int MQTTClientAgent::tlsCB(MqttClient *client){
+#ifndef MQTT_TLS_DEBUG
+	// wolfMQTT turns wolfSSL logging on when DEBUG_WOLFSSL is built in
+	wolfSSL_Debugging_OFF();
+#endif
+
+	client->tls.ctx = wolfSSL_CTX_new(wolfSSLv23_client_method());
+	if (client->tls.ctx == NULL){
+		printf("[MQTT] TLS: wolfSSL_CTX_new failed (out of heap?)\n");
+		return WOLFSSL_FAILURE;
+	}
+	wolfSSL_CTX_SetMinVersion(client->tls.ctx, WOLFSSL_TLSV1_2);
+
+	int rc = wolfSSL_CTX_load_verify_buffer(client->tls.ctx,
+			(const unsigned char *)MQTT_CA_PEM, strlen(MQTT_CA_PEM),
+			WOLFSSL_FILETYPE_PEM);
+	if (rc != WOLFSSL_SUCCESS){
+		printf("[MQTT] TLS: CA certificate failed to load: %d (%s)\n",
+				rc, wolfSSL_ERR_reason_error_string(rc));
+		return rc;
+	}
+	wolfSSL_CTX_set_verify(client->tls.ctx, WOLFSSL_VERIFY_PEER, NULL);
+
+	// Server Name Indication, for brokers hosting several names
+	const char *host = DeviceState::singleton()->getMQTThost();
+	wolfSSL_CTX_UseSNI(client->tls.ctx, WOLFSSL_SNI_HOST_NAME,
+			host, (word16)strlen(host));
+
+	return WOLFSSL_SUCCESS;
+}
+
+
+/***
+ * Network callbacks: TCP over lwIP sockets. wolfSSL runs over these.
  */
 int MQTTClientAgent::netConnect(void *context, const char* host, word16 port, int timeout_ms){
 	MQTTClientAgent *self = (MQTTClientAgent *)context;
@@ -463,6 +580,10 @@ int MQTTClientAgent::netConnect(void *context, const char* host, word16 port, in
 	}
 
 	self->xSock = sock;
+	printf("[MQTT] TCP connected to %s:%d in %lums, starting TLS\n",
+			self->pBrokerIP, port,
+			(unsigned long)(to_ms_since_boot(get_absolute_time()) - t0));
+	self->setState(MQTT_STATE_TLS);
 	return MQTT_CODE_SUCCESS;
 }
 
@@ -505,6 +626,9 @@ int MQTTClientAgent::netRead(void *context, ::byte* buf, int buf_len, int timeou
 			return MQTT_CODE_ERROR_NETWORK;
 		}
 		bytes += rc;
+		// Return what has arrived. wolfSSL and wolfMQTT both call again for
+		// the rest, so waiting for the whole buffer only adds latency.
+		break;
 	}
 
 	if (bytes == 0){

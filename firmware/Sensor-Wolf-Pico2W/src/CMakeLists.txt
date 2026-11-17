@@ -28,7 +28,36 @@ target_link_libraries(${NAME}
 
 target_include_directories(${NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}
      )
+
+# Broker CA certificate (PEM), embedded so the broker's TLS certificate can
+# be verified. Default certs/mqtt_ca.pem, or set MQTT_CA_FILE to another path.
+if (DEFINED ENV{MQTT_CA_FILE})
+	set(MQTT_CA_FILE "$ENV{MQTT_CA_FILE}")
+else()
+	set(MQTT_CA_FILE "${CMAKE_CURRENT_LIST_DIR}/../certs/mqtt_ca.pem")
+endif()
+if (NOT EXISTS "${MQTT_CA_FILE}")
+	message(FATAL_ERROR "Broker CA certificate not found at ${MQTT_CA_FILE}. "
+		"Copy the CA PEM there or set the MQTT_CA_FILE environment variable")
+endif()
+file(READ "${MQTT_CA_FILE}" MQTT_CA_RAW)
+string(FIND "${MQTT_CA_RAW}" "-----BEGIN CERTIFICATE-----" CA_POS)
+if (CA_POS LESS 0)
+	message(FATAL_ERROR "${MQTT_CA_FILE} does not contain a PEM certificate")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MQTT_CA_FILE}")
+file(STRINGS "${MQTT_CA_FILE}" CA_LINES)
+set(MQTT_CA_PEM "")
+foreach(CA_LINE IN LISTS CA_LINES)
+	string(STRIP "${CA_LINE}" CA_LINE)
+	if (NOT CA_LINE STREQUAL "")
+		string(APPEND MQTT_CA_PEM "\t\"${CA_LINE}\\n\"\n")
+	endif()
+endforeach()
+configure_file(mqtt_ca.h.in ${CMAKE_CURRENT_BINARY_DIR}/mqtt_ca.h @ONLY)
+message(STATUS "MQTT broker CA: ${MQTT_CA_FILE}")
 
 if (NOT DEFINED ENV{WIFI_SSID})
 	message(FATAL_ERROR "WIFI_SSID Environment variable not defined")

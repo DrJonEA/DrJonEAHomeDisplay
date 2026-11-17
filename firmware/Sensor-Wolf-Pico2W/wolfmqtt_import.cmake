@@ -1,4 +1,4 @@
-# wolfMQTT client library, plain TCP (no TLS), single threaded use.
+# wolfMQTT client library with TLS (ENABLE_MQTT_TLS) over wolfSSL, single threaded use.
 # Options come from ${WOLFMQTT_PORT_DIR}/wolfmqtt/options.h rather than
 # WOLFMQTT_USER_SETTINGS, whose user_settings.h would clash with wolfSSL's.
 
@@ -24,4 +24,5 @@ target_include_directories(wolfmqtt PUBLIC
 
 target_link_libraries(wolfmqtt PUBLIC
     pico_stdlib
+    wolfssl
 )

@@ -8,7 +8,7 @@ endif()
 set(WOLFSSL_LWIP 1)
 
 add_library(wolfssl STATIC)
-target_sources(wolfssl PUBLIC
+target_sources(wolfssl PRIVATE
 
     ${WOLFSSL_DIR}/src/bio.c
     ${WOLFSSL_DIR}/src/crl.c
@@ -113,6 +113,7 @@ target_link_libraries(wolfssl PUBLIC
     LWIP_PORT
     hardware_adc
     pico_rand
+    pico_aon_timer
     )
 
 

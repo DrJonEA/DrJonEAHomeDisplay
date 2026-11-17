@@ -1,12 +1,26 @@
 #include "pico/stdlib.h"
+#include "pico/aon_timer.h"
 
 #include "wolfssl/wolfcrypt/camellia.h"
 #include <time.h>
 
 
-//unsigned long my_time(unsigned long* timer){
+/***
+ * Wall clock in seconds since the epoch, used by wolfSSL (XTIME) to check
+ * certificate validity dates. The AON timer is set by SNTP; until then this
+ * returns 0, and certificates fail as not yet valid.
+ * Note WifiHelper sets the AON timer to local time (UTC + timezone offset).
+ */
 unsigned long my_time(time_t* timer){
-	return to_us_since_boot(get_absolute_time());
+	unsigned long t = 0;
+	struct timespec ts;
+	if (aon_timer_is_running() && aon_timer_get_time(&ts)){
+		t = (unsigned long)ts.tv_sec;
+	}
+	if (timer){
+		*timer = (time_t)t;
+	}
+	return t;
 }
 
 word32 LowResTimer(void) {
